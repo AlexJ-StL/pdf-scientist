@@ -1,0 +1,23 @@
+Please create an application that processes pdf documents in preparation for creating a hypergraph that employs semantic relationships. The goal is to build a semantic relational vector database of US EPA methodologies. There are a lot of methods dealing with different contaminates, matrices, and regulatory regimes, but they often share a common structure, common keywords/verbiage, and/or a plethora of other attributes that would make it a strong candidate for a semantic vector store or hypergraph..
+
+Key Features - Not an exhaustive list, so feel free to add or adjust features:
+- Option to process locally stored PDFs or URL link to PDF
+- MongoDB for database
+- Simple and efficient UI
+	- Default to dark mode
+- Users selectable LLM model and hosting
+	- Inference and Model Providers
+		- Groq, 
+		- Anthropic
+		- Gemini
+		- OpenRouter
+	- Local LLM inference
+		- Ollama
+		- LMStudio.
+- Processes the PDF data to be tokenized and semantically chunked
+- Create a log of the processing event
+	- PDF title
+	- Processing Date and Time
+	- Number of chunks created
+	- Number of tokens in processes data
+	- Number of chunks created

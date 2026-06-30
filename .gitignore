@@ -1,0 +1,75 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+target/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Data / local DB
+data/
+chroma/
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.coverage.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Documentation build
+docs/_build/
+site/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# OS-specific
+*.orig
+*.bak
