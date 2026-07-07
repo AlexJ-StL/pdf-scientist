@@ -1,0 +1,24 @@
+[package]
+name = "epa-kg-tauri"
+version = "0.1.0"
+edition = "2021"
+description = "Tauri v2 entry point for EPA Knowledge Graph"
+
+[[bin]]
+name = "epa-kg-tauri"
+path = "src/main.rs"
+
+[dependencies]
+epa-kg-core = { path = "../epa-kg-core" }
+epa-kg-api = { path = "../epa-kg-api" }
+epa-kg-graph = { path = "../epa-kg-graph" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+tauri = { version = "2.0", features = [] }
+tauri-macros = { version = "2.0", features = [] }
+tauri-plugin-opener = "2.0"
+
+[build-dependencies]
+tauri-build = { version = "2.0" }

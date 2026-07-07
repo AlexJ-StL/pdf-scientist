@@ -1,0 +1,19 @@
+[package]
+name = "epa-kg-api"
+version = "0.1.0"
+edition = "2021"
+description = "Axum HTTP API for query and admin"
+
+[dependencies]
+epa-kg-core = { path = "../epa-kg-core" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+chromadb = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

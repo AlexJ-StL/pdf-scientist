@@ -1,0 +1,24 @@
+[package]
+name = "epa-kg-core"
+version = "0.1.0"
+edition = "2021"
+description = "Shared types, config, and errors for EPA Knowledge Graph"
+
+[dependencies]
+# Workspace deps
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+config = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+sqlx = { workspace = true }
+
+# Additional
+schemars = "0.8"
+validator = { version = "0.17", features = ["derive"] }
