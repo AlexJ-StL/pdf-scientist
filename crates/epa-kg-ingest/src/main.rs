@@ -136,10 +136,10 @@ async fn run_ingest(
         Ok(response) => {
             if response.status().is_success() {
                 tracing::info!("Ingestion completed successfully");
-                let result: serde_json::Value = response.json().await?;
+                let result: serde_json::Value = response.json().await.map_err(|e| Error::Internal(e.to_string()))?;
                 tracing::info!("Result: {}", serde_json::to_string_pretty(&result)?);
             } else {
-                tracing::error!("Ingestion failed: {}", response.text().await?);
+                tracing::error!("Ingestion failed: {}", response.text().await.map_err(|e| Error::Internal(e.to_string()))?);
             }
         }
         Err(e) => {
@@ -152,7 +152,7 @@ async fn run_ingest(
 }
 
 async fn run_query(
-    settings: Settings,
+    _settings: Settings,
     question: String,
     top_k: usize,
     collection: String,
@@ -171,10 +171,10 @@ async fn run_query(
     match client.post(&query_url).json(&payload).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                let result: serde_json::Value = response.json().await?;
+                let result: serde_json::Value = response.json().await.map_err(|e| Error::Internal(e.to_string()))?;
                 println!("\n{}", serde_json::to_string_pretty(&result)?);
             } else {
-                tracing::error!("Query failed: {}", response.text().await?);
+                tracing::error!("Query failed: {}", response.text().await.map_err(|e| Error::Internal(e.to_string()))?);
             }
         }
         Err(e) => {
@@ -197,7 +197,7 @@ async fn run_graph(
     Ok(())
 }
 
-async fn run_server(settings: Settings, port: u16) -> Result<()> {
+async fn run_server(_settings: Settings, port: u16) -> Result<()> {
     tracing::info!("Starting API server on port {}", port);
     // TODO: Start Axum server
     println!("Server not yet implemented");

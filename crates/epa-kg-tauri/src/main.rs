@@ -1,7 +1,6 @@
 //! Tauri v2 entry point for EPA Knowledge Graph
 
 use epa_kg_core::Settings;
-use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -9,7 +8,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
+        .setup(move |_app| {
             let _settings = settings.clone();
             
             // Initialize logging
@@ -46,4 +45,8 @@ async fn query_knowledge_graph(question: String, top_k: usize) -> Result<String,
 async fn ingest_documents(pdf_dir: String, collection: String) -> Result<String, String> {
     // TODO: Call ingestion service
     Ok(format!("Ingesting from '{}' into '{}' - not yet implemented", pdf_dir, collection))
+}
+
+fn main() {
+    run();
 }

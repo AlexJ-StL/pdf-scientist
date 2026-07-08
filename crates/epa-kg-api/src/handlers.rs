@@ -77,7 +77,7 @@ pub struct IngestResponse {
 
 pub async fn ingest_handler(
     State(_state): State<Arc<AppState>>,
-    Json(payload): Json<IngestRequest>,
+    Json(_payload): Json<IngestRequest>,
 ) -> Result<Json<IngestResponse>> {
     // TODO: Forward to Python ingestion service
     Ok(Json(IngestResponse {

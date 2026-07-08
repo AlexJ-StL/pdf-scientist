@@ -3,7 +3,6 @@
 use config::{Config, Environment, File};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use url::Url;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -30,7 +29,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn load() -> anyhow::Result<Self> {
+    pub fn load() -> crate::Result<Self> {
         let mut builder = Config::builder()
             .add_source(File::with_name("config").required(false))
             .add_source(File::with_name(".env").required(false))
