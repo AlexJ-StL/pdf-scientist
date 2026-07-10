@@ -38,6 +38,9 @@ cd epa-knowledge-graph
 cp .env.example .env
 # Edit .env with your paths / API keys
 
+# Start Python ingestion service (in separate terminal)
+cd python/ingestion && uv run python -m main
+
 # Ingest your EPA method PDFs
 cargo run --bin epa-kg -- ingest --pdf-dir ./epa-methods
 
@@ -70,21 +73,21 @@ cargo tauri dev
                         │  - graph engine  │     └─────────────────┘
                         └────────┬─────────┘
                                  │
-                        ┌────────▼─────────┐
-                        │  Tauri v2 App    │
-                        │  (React + TS)    │
-                        │  Desktop + iOS   │
-                        │  + Android       │
-                        └──────────────────┘
+                         ┌────────▼─────────┐
+                         │  Tauri v2 App    │
+                         │  (React + TS)    │
+                         │  Desktop + iOS   │
+                         │  + Android       │
+                         └──────────────────┘
 ```
 
 **Tech Stack:**
 - **Core API/CLI:** Rust (Axum, Tokio, Serde, Clap)
-- **Ingestion/ML:** Python 3.12 (FastAPI, pdfium, LangChain, fastembed)
+- **Ingestion/ML:** Python 3.12 (FastAPI, pdfium, pdfplumber, fastembed)
 - **Vector DB:** ChromaDB (embedded, zero-config)
 - **Relational DB:** PostgreSQL (tenants, users, audit logs)
 - **Graph Layer:** SQLite adjacency (Phase 1) → Neo4j (Phase 2+)
-- **Frontend:** Tauri v2 + React 18 + TypeScript + Tailwind + shadcn/ui
+- **Frontend:** Tauri v2 + React 18 + TypeScript + Tailwind + shadcn/ui (planned)
 - **Local LLM:** Ollama / LM Studio (metadata extraction, optional)
 
 ---
@@ -101,29 +104,31 @@ epa-knowledge-graph/
 │   ├── epa-kg-graph/             # Citation graph engine
 │   └── epa-kg-tauri/             # Tauri entry point
 ├── python/
-│   ├── ingestion/                # FastAPI service
-│   │   ├── chunking.py           # TOC-aware recursive splitter
-│   │   ├── embeddings.py         # fastembed / OpenAI providers
-│   │   ├── metadata.py           # LLM-assisted extraction
-│   │   └── tests/
-│   └── requirements.txt
-├── ui/                           # React frontend (Tauri)
-│   ├── src/
-│   ├── package.json
-│   └── vite.config.ts
-├── docker/
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── docs/
+│   └── ingestion/                # FastAPI service
+│       ├── main.py
+│       ├── chunking.py           # TOC-aware recursive splitter
+│       ├── embeddings.py         # fastembed / OpenRouter / Ollama
+│       ├── metadata.py           # LLM-assisted extraction
+│       ├── chroma_client.py
+│       ├── config.py
+│       └── tests/
+├── docs/                         # Documentation
 │   ├── architecture.md
 │   ├── api.md
 │   ├── contributing.md
+│   ├── development.md
+│   ├── ingestion-guide.md
 │   └── phase-1-ingestion.md
-├── .github/workflows/
+├── docker/                       # Docker config (planned)
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── .github/workflows/            # CI/CD (planned)
 ├── LICENSE
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
+├── SECURITY.md
+├── DEVELOPMENT.md
 └── .env.example
 ```
 

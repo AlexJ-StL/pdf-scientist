@@ -1,6 +1,7 @@
 # EPA Knowledge Graph - Python Ingestion Service Main Application
 
 import os
+import json
 import logging
 from contextlib import asynccontextmanager
 from typing import List, Optional, Dict, Any
@@ -28,6 +29,21 @@ chroma_manager: Optional[ChromaManager] = None
 embedding_provider: Optional[EmbeddingProvider] = None
 metadata_extractor: Optional[MetadataExtractor] = None
 chunker: Optional[EPAMethodChunker] = None
+
+
+def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert list/dict values to JSON strings for ChromaDB compatibility."""
+    result = {}
+    for key, value in meta.items():
+        if value is None:
+            continue
+        elif isinstance(value, (list, dict)):
+            result[key] = json.dumps(value)
+        elif isinstance(value, (str, int, float, bool)):
+            result[key] = value
+        else:
+            result[key] = str(value)
+    return result
 
 
 @asynccontextmanager
@@ -255,7 +271,7 @@ async def query_knowledge_graph(request: QueryRequest):
             metadata=metadata,
         ))
     
-    # Generate answer (simple concatenation for now; LLM synthesis in Phase 3)
+    # Generate answer
     if sources:
         answer = f"Found {len(sources)} relevant sections for your query:\n\n"
         for src in sources:
@@ -282,7 +298,7 @@ async def process_pdf(
     chroma_manager: ChromaManager,
     force_reindex: bool = False,
 ) -> Dict[str, int]:
-    """Process a single PDF file."""
+    """Process a single PDF file with batch embeddings."""
     logger.info(f"Processing {pdf_file.name}...")
     
     # Extract text and structure (synchronous call, not awaited)
@@ -292,20 +308,18 @@ async def process_pdf(
         logger.warning(f"No chunks extracted from {pdf_file.name}")
         return {"chunks_created": 0}
     
-    # Extract metadata for each chunk (using first chunk for document-level metadata)
+    # Extract metadata (using first chunk for document-level metadata)
     doc_metadata = {}
     if metadata_extractor and chunks:
         doc_metadata = await metadata_extractor.extract_metadata(chunks[0]["text"], pdf_file.name)
     
-    # Prepare documents for ChromaDB
-    documents = []
-    metadatas = []
-    ids = []
-    embeddings = []
+    method_num = doc_metadata.get("method_number", "UNKNOWN")
+    
+    # Pass 1: Filter new chunks and collect texts for batch embedding
+    new_chunks = []
+    new_texts = []
     
     for i, chunk in enumerate(chunks):
-        # Generate chunk ID
-        method_num = doc_metadata.get("method_number", "UNKNOWN")
         section = chunk.get("section", "0")
         chunk_id = f"METHOD_{method_num}_{section}_{i}"
         
@@ -316,11 +330,28 @@ async def process_pdf(
                 logger.debug(f"Chunk {chunk_id} already exists, skipping")
                 continue
         
-        # Generate embedding
-        embedding = await embedding_provider.embed_query(chunk["text"])
+        new_chunks.append((i, chunk))
+        new_texts.append(chunk["text"])
+    
+    if not new_texts:
+        logger.info(f"All {len(chunks)} chunks already indexed for {pdf_file.name}, skipping")
+        return {"chunks_created": 0}
+    
+    # Pass 2: Batch embed all new texts at once (embeddings provider batches internally)
+    logger.info(f"Batch embedding {len(new_texts)} chunks for {pdf_file.name}...")
+    new_embeddings = await embedding_provider.embed_documents(new_texts)
+    
+    # Pass 3: Build and store with sanitized metadata
+    documents = []
+    metadatas = []
+    ids = []
+    embeddings = []
+    
+    for idx, ((i, chunk), embedding) in enumerate(zip(new_chunks, new_embeddings)):
+        section = chunk.get("section", "0")
+        chunk_id = f"METHOD_{method_num}_{section}_{i}"
         
-        # Build metadata
-        metadata = {
+        metadata = sanitize_metadata({
             "method_number": method_num,
             "method_title": doc_metadata.get("method_title", ""),
             "section": section,
@@ -330,7 +361,7 @@ async def process_pdf(
             "source_pdf": pdf_file.name,
             **doc_metadata,
             **chunk.get("metadata", {}),
-        }
+        })
         
         documents.append(chunk["text"])
         metadatas.append(metadata)

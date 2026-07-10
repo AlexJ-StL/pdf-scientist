@@ -73,3 +73,6 @@ temp/
 # OS-specific
 *.orig
 *.bak
+
+# Legacy Docs & Files
+.docs/legacy/

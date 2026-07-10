@@ -1,9 +1,7 @@
 # EPA Knowledge Graph - Python Ingestion Service Configuration
 
-import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import Field
 from typing import Optional, Literal
 
 # Find project root (where .env lives)
@@ -37,7 +35,7 @@ class Settings(BaseSettings):
 
     # Embeddings
     embedding_provider: Literal["openrouter", "ollama", "fastembed"] = "openrouter"
-    
+
     # OpenRouter Embeddings
     openrouter_embedding_api_key: Optional[str] = None
     openrouter_embedding_model: str = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
@@ -70,7 +68,6 @@ class Settings(BaseSettings):
     reranker_openrouter_model: str = "nvidia/llama-nemotron-rerank-vl-1b-v2:free"
 
     # OpenRouter API Key (shared) - accepts both naming conventions
-    openrouter_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
 
     class Config:

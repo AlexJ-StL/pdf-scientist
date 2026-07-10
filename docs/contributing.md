@@ -92,7 +92,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `chore` — Build, deps, tooling
 - `ci` — CI/CD changes
 
-**Scopes:** `core`, `ingest`, `api`, `graph`, `tauri`, `python`, `docs`, `deps`
+**Scopes:** `core`, `ingest`, `api`, `graph`, `tauri`, `ui`, `python`, `docs`, `deps`
 
 **Examples:**
 ```
@@ -111,7 +111,7 @@ test(graph): add golden-file tests for cross-ref extraction
    ```bash
    cargo fmt --check && cargo clippy --workspace -D warnings
    cd python/ingestion && uv run ruff check . && uv run pytest
-   # cd ui && npm run lint && npm run typecheck  # when UI exists
+   cd ui && npm run lint && npm run typecheck  # when UI exists
    ```
 5. **Open PR** against `main` with:
    - Clear title (Conventional Commit format)
