@@ -1,0 +1,37 @@
+Replaced in `README.md` 07/09/2026
+
+epa-knowledge-graph/
+├── Cargo.toml                    # Rust workspace
+├── crates/
+│   ├── epa-kg-core/              # Shared types, config, errors
+│   ├── epa-kg-ingest/            # CLI + Python bridge
+│   ├── epa-kg-api/               # Axum HTTP API
+│   ├── epa-kg-graph/             # Citation graph engine
+│   └── epa-kg-tauri/             # Tauri entry point
+├── python/
+│   └── ingestion/                # FastAPI service
+│       ├── main.py
+│       ├── chunking.py           # TOC-aware recursive splitter
+│       ├── embeddings.py         # fastembed / OpenRouter / Ollama
+│       ├── metadata.py           # LLM-assisted extraction
+│       ├── chroma_client.py
+│       ├── config.py
+│       └── tests/
+├── docs/                         # Documentation
+│   ├── architecture.md
+│   ├── api.md
+│   ├── contributing.md
+│   ├── development.md
+│   ├── ingestion-guide.md
+│   └── phase-1-ingestion.md
+├── docker/                       # Docker config (planned)
+│   ├── Dockerfile
+│   └── docker-compose.yml
+├── .github/workflows/            # CI/CD (planned)
+├── LICENSE
+├── README.md
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── SECURITY.md
+├── DEVELOPMENT.md
+└── .env.example

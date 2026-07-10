@@ -32,8 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Migrated from legacy MongoDB + OpenAI + PyPDF2 stack to ChromaDB + FastEmbed/Ollama/OpenRouter + PyMuPDF/pdfplumber
-- Renamed project from `pdf-scientist` → `epa-knowledge-graph` (pending repo rename)
+- Renamed project from `pdf-scientist` → `epa-knowledge-graph`
 - Moved legacy planning docs to `.docs/` for historical preservation
+- Moved `.docs/.kiro/steering` to `.archive/steering`
+- Deleted `.docs/.kiro` (empty folder after moving `.docs/.kiro/steering`
+- Renamed `.docs` to `.archive` for better distinction between `.docs` and `docs`
+- Copied the new Project Structure into the `## Project Structure` section in the `README.md`
+- Legacy Project Structure labeled `old-project-structure_07092026.txt` added to `.archive`
 
 ### Preserved
 - Historical Kiro steering docs in `.docs/.kiro/steering/`

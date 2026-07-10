@@ -4,15 +4,15 @@
 
 ```
 epa-knowledge-graph/
-├── Cargo.toml                    # Rust workspace root
-├── crates/                       # Rust crates (5)
-│   ├── epa-kg-core/              # Shared types, config, errors
-│   ├── epa-kg-ingest/            # CLI binary + Python bridge
-│   ├── epa-kg-api/               # Axum HTTP API
-│   ├── epa-kg-graph/             # Citation graph engine
-│   └── epa-kg-tauri/             # Tauri v2 entry point
+├── Cargo.toml                                 # Rust workspace root
+├── crates/                                        # Rust crates (5)
+│   ├── epa-kg-core/                         # Shared types, config, errors
+│   ├── epa-kg-ingest/                      # CLI binary + Python bridge
+│   ├── epa-kg-api/                           # Axum HTTP API
+│   ├── epa-kg-graph/                      # Citation graph engine
+│   └── epa-kg-tauri/                           # Tauri v2 entry point
 ├── python/
-│   └── ingestion/                # FastAPI ingestion service
+│   └── ingestion/                                # FastAPI ingestion service
 │       ├── main.py
 │       ├── chunking.py
 │       ├── embeddings.py
@@ -21,19 +21,19 @@ epa-knowledge-graph/
 │       ├── config.py
 │       ├── requirements.txt
 │       └── tests/
-├── docs/                         # Documentation (new)
+├── docs/                                           # Documentation (new)
 │   ├── architecture.md
 │   ├── api.md
 │   ├── phase-1-ingestion.md
 │   ├── development.md
 │   └── ingestion-guide.md
-├── .docs/                        # Historical/legacy docs
-│   ├── .kiro/steering/           # Kiro steering configs
+├── .docs/                                         # Historical/legacy docs
+│   ├── steering/                               # Project steering configs
 │   ├── EPA-Knowledge-Graph-Plan.md
-│   └── *.txt                     # Legacy planning docs
-├── docker/                       # Dockerfiles (planned)
-├── .github/workflows/            # CI/CD (planned)
-├── .env.example                  # Environment template
+│   └── *.txt                                         # Legacy planning docs
+├── docker/                                     # Dockerfiles (planned)
+├── .github/workflows/                 # CI/CD (planned)
+├── .env.example                           # Environment template
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
@@ -41,7 +41,7 @@ epa-knowledge-graph/
 ├── DEVELOPMENT.md                # Symlink to docs/development.md
 ├── LICENSE
 ├── .gitignore
-└── target/                       # Rust build artifacts (gitignored)
+└── target/                                        # Rust build artifacts (gitignored)
 ```
 
 ---
@@ -87,11 +87,11 @@ epa-knowledge-graph/
 
 ```
 docs/
-├── architecture.md          # System architecture, data flow, tech choices
-├── api.md                   # REST API, CLI, Tauri commands reference
-├── phase-1-ingestion.md     # Detailed Phase 1 spec + acceptance criteria
-├── development.md           # Dev setup, testing, debugging, code style
-└── ingestion-guide.md       # Ingestion Guide (this file)
+├── architecture.md                     # System architecture, data flow, tech choices
+├── api.md                                      # REST API, CLI, Tauri commands reference
+├── phase-1-ingestion.md           # Detailed Phase 1 spec + acceptance criteria
+├── development.md                   # Dev setup, testing, debugging, code style
+└── ingestion-guide.md                  # Ingestion Guide (this file)
 ```
 
 ---

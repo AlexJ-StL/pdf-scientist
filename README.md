@@ -96,40 +96,44 @@ cargo tauri dev
 
 ```
 epa-knowledge-graph/
-├── Cargo.toml                    # Rust workspace
-├── crates/
-│   ├── epa-kg-core/              # Shared types, config, errors
-│   ├── epa-kg-ingest/            # CLI + Python bridge
-│   ├── epa-kg-api/               # Axum HTTP API
-│   ├── epa-kg-graph/             # Citation graph engine
-│   └── epa-kg-tauri/             # Tauri entry point
+├── Cargo.toml                                 # Rust workspace root
+├── crates/                                        # Rust crates (5)
+│   ├── epa-kg-core/                         # Shared types, config, errors
+│   ├── epa-kg-ingest/                      # CLI binary + Python bridge
+│   ├── epa-kg-api/                           # Axum HTTP API
+│   ├── epa-kg-graph/                      # Citation graph engine
+│   └── epa-kg-tauri/                           # Tauri v2 entry point
 ├── python/
-│   └── ingestion/                # FastAPI service
+│   └── ingestion/                                # FastAPI ingestion service
 │       ├── main.py
-│       ├── chunking.py           # TOC-aware recursive splitter
-│       ├── embeddings.py         # fastembed / OpenRouter / Ollama
-│       ├── metadata.py           # LLM-assisted extraction
+│       ├── chunking.py
+│       ├── embeddings.py
+│       ├── metadata.py
 │       ├── chroma_client.py
 │       ├── config.py
+│       ├── requirements.txt
 │       └── tests/
-├── docs/                         # Documentation
+├── docs/                                           # Documentation (new)
 │   ├── architecture.md
 │   ├── api.md
-│   ├── contributing.md
+│   ├── phase-1-ingestion.md
 │   ├── development.md
-│   ├── ingestion-guide.md
-│   └── phase-1-ingestion.md
-├── docker/                       # Docker config (planned)
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── .github/workflows/            # CI/CD (planned)
-├── LICENSE
+│   └── ingestion-guide.md
+├── .docs/                                         # Historical/legacy docs
+│   ├── steering/                               # Project steering configs
+│   ├── EPA-Knowledge-Graph-Plan.md
+│   └── *.txt                                         # Legacy planning docs
+├── docker/                                     # Dockerfiles (planned)
+├── .github/workflows/                 # CI/CD (planned)
+├── .env.example                           # Environment template
 ├── README.md
 ├── CONTRIBUTING.md
 ├── CHANGELOG.md
 ├── SECURITY.md
-├── DEVELOPMENT.md
-└── .env.example
+├── DEVELOPMENT.md                # Symlink to docs/development.md
+├── LICENSE
+├── .gitignore
+└── target/                                        # Rust build artifacts (gitignored)
 ```
 
 ---

@@ -1,0 +1,7 @@
+PyPDF2
+langchain
+tiktoken
+pandas
+python-dotenv
+psycopg2-binary
+pymongo

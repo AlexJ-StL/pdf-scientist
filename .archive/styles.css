@@ -1,0 +1,34 @@
+body {
+  font-family: sans-serif;
+}
+
+#database-form label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+#database-form select,
+#database-form input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+#database-form button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  cursor: pointer;
+}
+
+#llm-response {
+  margin-top: 20px;
+}
+
+#llm-response-content {
+  border: 1px solid #ccc;
+  padding: 10px;
+}
