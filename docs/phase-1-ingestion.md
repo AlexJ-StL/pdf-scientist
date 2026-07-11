@@ -194,8 +194,8 @@ RUN cargo build --release --workspace
 # Stage 2: Python deps
 FROM python:3.12-slim as python-deps
 WORKDIR /app
-COPY python/ingestion/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN pip install --no-cache-dir uv && uv sync --frozen
 
 # Stage 3: Runtime
 FROM debian:bookworm-slim
@@ -211,8 +211,11 @@ COPY --from=rust-builder /app/target/release/epa-kg /usr/local/bin/
 COPY --from=rust-builder /app/target/release/epa-kg-tauri /usr/local/bin/
 
 # Copy Python service
-COPY --from=python-deps /usr/local/lib/python3.12 /usr/local/lib/python3.12
+COPY --from=python-deps /root/.local /root/.local
 COPY python/ingestion ./python/ingestion
+
+# Ensure uv is in PATH
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh
@@ -255,7 +258,7 @@ services:
 
   ingestion:
     build: .
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+    command: ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
     working_dir: /app/python/ingestion
     ports: ["8001:8001"]
     environment:

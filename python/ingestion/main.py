@@ -1,21 +1,19 @@
 # EPA Knowledge Graph - Python Ingestion Service Main Application
 
-import os
 import json
 import logging
 from contextlib import asynccontextmanager
-from typing import List, Optional, Dict, Any
 from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from pydantic import BaseModel, Field
+from .chroma_client import ChromaManager
+from .chunking import EPAMethodChunker
+from .config import settings
 from dotenv import load_dotenv
-
-from config import settings
-from chunking import EPAMethodChunker
-from embeddings import EmbeddingProvider, get_embedding_provider
-from chroma_client import ChromaManager
-from metadata import MetadataExtractor, get_metadata_extractor
+from .embeddings import EmbeddingProvider, get_embedding_provider
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from .metadata import MetadataExtractor, get_metadata_extractor
+from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()
@@ -25,13 +23,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Global instances
-chroma_manager: Optional[ChromaManager] = None
-embedding_provider: Optional[EmbeddingProvider] = None
-metadata_extractor: Optional[MetadataExtractor] = None
-chunker: Optional[EPAMethodChunker] = None
+chroma_manager: ChromaManager | None = None
+embedding_provider: EmbeddingProvider | None = None
+metadata_extractor: MetadataExtractor | None = None
+chunker: EPAMethodChunker | None = None
 
 
-def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+def sanitize_metadata(meta: dict[str, Any]) -> dict[str, Any]:
     """Convert list/dict values to JSON strings for ChromaDB compatibility."""
     result = {}
     for key, value in meta.items():
@@ -50,9 +48,9 @@ def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     global chroma_manager, embedding_provider, metadata_extractor, chunker
-    
+
     logger.info("Starting EPA Knowledge Graph Ingestion Service...")
-    
+
     # Initialize ChromaDB
     chroma_manager = ChromaManager(
         host=settings.chroma_host,
@@ -66,15 +64,15 @@ async def lifespan(app: FastAPI):
     )
     await chroma_manager.initialize()
     logger.info("ChromaDB initialized")
-    
+
     # Initialize embedding provider
     embedding_provider = get_embedding_provider(settings)
     logger.info(f"Embedding provider initialized: {settings.embedding_provider}")
-    
+
     # Initialize metadata extractor
     metadata_extractor = get_metadata_extractor(settings)
     logger.info(f"Metadata extractor initialized: {settings.llm_provider}")
-    
+
     # Initialize chunker
     chunker = EPAMethodChunker(
         chunk_size=settings.chunk_size,
@@ -82,9 +80,9 @@ async def lifespan(app: FastAPI):
         toc_aware=settings.toc_aware,
     )
     logger.info("Chunker initialized")
-    
+
     yield
-    
+
     # Cleanup
     logger.info("Shutting down...")
     if chroma_manager:
@@ -101,12 +99,12 @@ app = FastAPI(
 
 # Request/Response Models
 class IngestRequest(BaseModel):
-    pdf_dir: Optional[str] = None
+    pdf_dir: str | None = None
     collection: str = "epa_methods"
     force_reindex: bool = False
-    chunk_size: Optional[int] = None
-    chunk_overlap: Optional[int] = None
-    toc_aware: Optional[bool] = None
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+    toc_aware: bool | None = None
 
 
 class IngestResponse(BaseModel):
@@ -114,15 +112,15 @@ class IngestResponse(BaseModel):
     documents_processed: int
     chunks_created: int
     time_ms: int
-    errors: List[str] = []
+    errors: list[str] = []
 
 
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
     collection: str = "epa_methods"
-    embedding_provider: Optional[str] = None
-    embedding_model: Optional[str] = None
+    embedding_provider: str | None = None
+    embedding_model: str | None = None
 
 
 class Source(BaseModel):
@@ -131,12 +129,12 @@ class Source(BaseModel):
     chunk_index: int
     text: str
     score: float
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
 
 class QueryResponse(BaseModel):
     answer: str
-    sources: List[Source]
+    sources: list[Source]
     query_time_ms: int
 
 
@@ -164,20 +162,25 @@ async def health_check():
 async def ingest_documents(request: IngestRequest, background_tasks: BackgroundTasks):
     """Ingest EPA method PDFs into ChromaDB."""
     import time
+
     start_time = time.time()
-    
+
     pdf_dir = Path(request.pdf_dir) if request.pdf_dir else settings.pdf_dir
     collection = request.collection or settings.chroma_collection
-    
+
     if not pdf_dir.exists():
         raise HTTPException(status_code=400, detail=f"PDF directory does not exist: {pdf_dir}")
-    
+
     # Override chunker settings if provided
     chunk_size = request.chunk_size or settings.chunk_size
     chunk_overlap = request.chunk_overlap or settings.chunk_overlap
     toc_aware = request.toc_aware if request.toc_aware is not None else settings.toc_aware
-    
-    if chunk_size != settings.chunk_size or chunk_overlap != settings.chunk_overlap or toc_aware != settings.toc_aware:
+
+    if (
+        chunk_size != settings.chunk_size
+        or chunk_overlap != settings.chunk_overlap
+        or toc_aware != settings.toc_aware
+    ):
         local_chunker = EPAMethodChunker(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -185,26 +188,28 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
         )
     else:
         local_chunker = chunker
-    
+
     # Find PDF files
     pdf_files = list(pdf_dir.glob("*.pdf"))
     if not pdf_files:
         raise HTTPException(status_code=400, detail=f"No PDF files found in {pdf_dir}")
-    
+
     logger.info(f"Starting ingestion of {len(pdf_files)} PDFs from {pdf_dir}")
-    
+
     documents_processed = 0
     chunks_created = 0
     errors = []
-    
+
     for pdf_file in pdf_files:
         try:
             # Check file size
             file_size_mb = pdf_file.stat().st_size / (1024 * 1024)
             if file_size_mb > settings.max_file_size_mb:
-                errors.append(f"{pdf_file.name}: File too large ({file_size_mb:.1f}MB > {settings.max_file_size_mb}MB)")
+                errors.append(
+                    f"{pdf_file.name}: File too large ({file_size_mb:.1f}MB > {settings.max_file_size_mb}MB)"
+                )
                 continue
-            
+
             # Process PDF
             result = await process_pdf(
                 pdf_file=pdf_file,
@@ -215,16 +220,16 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
                 chroma_manager=chroma_manager,
                 force_reindex=request.force_reindex,
             )
-            
+
             documents_processed += 1
             chunks_created += result["chunks_created"]
-            
+
         except Exception as e:
             logger.error(f"Error processing {pdf_file.name}: {e}")
             errors.append(f"{pdf_file.name}: {str(e)}")
-    
+
     elapsed_ms = int((time.time() - start_time) * 1000)
-    
+
     return IngestResponse(
         status="completed" if not errors else "completed_with_errors",
         documents_processed=documents_processed,
@@ -238,39 +243,44 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
 async def query_knowledge_graph(request: QueryRequest):
     """Query the knowledge graph with natural language."""
     import time
+
     start_time = time.time()
-    
+
     if not chroma_manager or not embedding_provider:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     collection = request.collection or settings.chroma_collection
-    
+
     # Generate query embedding
     query_embedding = await embedding_provider.embed_query(request.question)
-    
+
     # Search ChromaDB
     results = await chroma_manager.query(
         collection_name=collection,
         query_embedding=query_embedding,
         n_results=request.top_k,
     )
-    
+
     # Format sources
     sources = []
-    for i, (doc, metadata, distance) in enumerate(zip(
-        results.get("documents", [[]])[0],
-        results.get("metadatas", [[]])[0],
-        results.get("distances", [[]])[0],
-    )):
-        sources.append(Source(
-            method=metadata.get("method_number", "Unknown"),
-            section=metadata.get("section", "Unknown"),
-            chunk_index=metadata.get("chunk_index", i),
-            text=doc,
-            score=1.0 - distance,  # Convert distance to similarity score
-            metadata=metadata,
-        ))
-    
+    for i, (doc, metadata, distance) in enumerate(
+        zip(
+            results.get("documents", [[]])[0],
+            results.get("metadatas", [[]])[0],
+            results.get("distances", [[]])[0],
+        )
+    ):
+        sources.append(
+            Source(
+                method=metadata.get("method_number", "Unknown"),
+                section=metadata.get("section", "Unknown"),
+                chunk_index=metadata.get("chunk_index", i),
+                text=doc,
+                score=1.0 - distance,  # Convert distance to similarity score
+                metadata=metadata,
+            )
+        )
+
     # Generate answer
     if sources:
         answer = f"Found {len(sources)} relevant sections for your query:\n\n"
@@ -279,9 +289,9 @@ async def query_knowledge_graph(request: QueryRequest):
             answer += f"{src.text[:300]}...\n\n"
     else:
         answer = "No relevant sections found for your query."
-    
+
     elapsed_ms = int((time.time() - start_time) * 1000)
-    
+
     return QueryResponse(
         answer=answer,
         sources=sources,
@@ -294,80 +304,82 @@ async def process_pdf(
     collection: str,
     chunker: EPAMethodChunker,
     embedding_provider: EmbeddingProvider,
-    metadata_extractor: Optional[MetadataExtractor],
+    metadata_extractor: MetadataExtractor | None,
     chroma_manager: ChromaManager,
     force_reindex: bool = False,
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """Process a single PDF file with batch embeddings."""
     logger.info(f"Processing {pdf_file.name}...")
-    
+
     # Extract text and structure (synchronous call, not awaited)
     chunks = chunker.chunk_pdf(pdf_file)
-    
+
     if not chunks:
         logger.warning(f"No chunks extracted from {pdf_file.name}")
         return {"chunks_created": 0}
-    
+
     # Extract metadata (using first chunk for document-level metadata)
     doc_metadata = {}
     if metadata_extractor and chunks:
         doc_metadata = await metadata_extractor.extract_metadata(chunks[0]["text"], pdf_file.name)
-    
+
     method_num = doc_metadata.get("method_number", "UNKNOWN")
-    
+
     # Pass 1: Filter new chunks and collect texts for batch embedding
     new_chunks = []
     new_texts = []
-    
+
     for i, chunk in enumerate(chunks):
         section = chunk.get("section", "0")
         chunk_id = f"METHOD_{method_num}_{section}_{i}"
-        
+
         # Skip if exists and not force reindex
         if not force_reindex:
             existing = await chroma_manager.get(collection, [chunk_id])
             if existing and existing.get("ids"):
                 logger.debug(f"Chunk {chunk_id} already exists, skipping")
                 continue
-        
+
         new_chunks.append((i, chunk))
         new_texts.append(chunk["text"])
-    
+
     if not new_texts:
         logger.info(f"All {len(chunks)} chunks already indexed for {pdf_file.name}, skipping")
         return {"chunks_created": 0}
-    
+
     # Pass 2: Batch embed all new texts at once (embeddings provider batches internally)
     logger.info(f"Batch embedding {len(new_texts)} chunks for {pdf_file.name}...")
     new_embeddings = await embedding_provider.embed_documents(new_texts)
-    
+
     # Pass 3: Build and store with sanitized metadata
     documents = []
     metadatas = []
     ids = []
     embeddings = []
-    
+
     for idx, ((i, chunk), embedding) in enumerate(zip(new_chunks, new_embeddings)):
         section = chunk.get("section", "0")
         chunk_id = f"METHOD_{method_num}_{section}_{i}"
-        
-        metadata = sanitize_metadata({
-            "method_number": method_num,
-            "method_title": doc_metadata.get("method_title", ""),
-            "section": section,
-            "section_title": chunk.get("section_title", ""),
-            "chunk_index": i,
-            "token_count": chunk.get("token_count", 0),
-            "source_pdf": pdf_file.name,
-            **doc_metadata,
-            **chunk.get("metadata", {}),
-        })
-        
+
+        metadata = sanitize_metadata(
+            {
+                "method_number": method_num,
+                "method_title": doc_metadata.get("method_title", ""),
+                "section": section,
+                "section_title": chunk.get("section_title", ""),
+                "chunk_index": i,
+                "token_count": chunk.get("token_count", 0),
+                "source_pdf": pdf_file.name,
+                **doc_metadata,
+                **chunk.get("metadata", {}),
+            }
+        )
+
         documents.append(chunk["text"])
         metadatas.append(metadata)
         ids.append(chunk_id)
         embeddings.append(embedding)
-    
+
     # Store in ChromaDB
     if documents:
         await chroma_manager.upsert(
@@ -378,12 +390,13 @@ async def process_pdf(
             embeddings=embeddings,
         )
         logger.info(f"Stored {len(documents)} chunks from {pdf_file.name}")
-    
+
     return {"chunks_created": len(documents)}
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host=settings.host,

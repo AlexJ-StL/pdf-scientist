@@ -2,29 +2,25 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from pathlib import Path
 
 import httpx
-
-from config import settings
 
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingProvider(ABC):
     """Abstract base class for embedding providers."""
-    
+
     @abstractmethod
-    async def embed_query(self, text: str) -> List[float]:
+    async def embed_query(self, text: str) -> list[float]:
         """Embed a single query text."""
         pass
-    
+
     @abstractmethod
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Embed multiple documents."""
         pass
-    
+
     @abstractmethod
     def get_dimensions(self) -> int:
         """Return embedding dimensions."""
@@ -33,17 +29,18 @@ class EmbeddingProvider(ABC):
 
 class FastEmbedProvider(EmbeddingProvider):
     """Local embeddings via fastembed (BGE, E5, etc.)."""
-    
+
     def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5", batch_size: int = 32):
         self.model_name = model_name
         self.batch_size = batch_size
         self._model = None
         self._dimensions = None
-    
+
     def _get_model(self):
         if self._model is None:
             try:
                 from fastembed import TextEmbedding
+
                 logger.info(f"Loading fastembed model: {self.model_name}")
                 self._model = TextEmbedding(model_name=self.model_name)
                 # Get dimensions from a test embedding
@@ -54,26 +51,26 @@ class FastEmbedProvider(EmbeddingProvider):
                 logger.warning("fastembed not installed, falling back to character estimation")
                 self._model = None
         return self._model
-    
-    async def embed_query(self, text: str) -> List[float]:
+
+    async def embed_query(self, text: str) -> list[float]:
         embeddings = await self.embed_documents([text])
         return embeddings[0] if embeddings else []
-    
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         self._get_model()
-        
+
         if self._model is None:
             # Fallback: character-based estimation
             logger.warning("Using character-based embedding estimation")
             return [[0.0] * 384 for _ in texts]  # BGE-small dimensions
-        
+
         all_embeddings = []
         for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
+            batch = texts[i : i + self.batch_size]
             embeddings = list(self._model.embed(batch))
             all_embeddings.extend(embeddings)
         return all_embeddings
-    
+
     def get_dimensions(self) -> int:
         if self._dimensions is None:
             self._get_model()
@@ -82,12 +79,12 @@ class FastEmbedProvider(EmbeddingProvider):
 
 class OpenRouterEmbeddingProvider(EmbeddingProvider):
     """Remote embeddings via OpenRouter API (OpenAI-compatible)."""
-    
+
     def __init__(
         self,
         api_key: str,
         model: str = "openai/text-embedding-3-small",
-        dimensions: Optional[int] = None,
+        dimensions: int | None = None,
         batch_size: int = 32,
     ):
         self.model = model
@@ -105,24 +102,24 @@ class OpenRouterEmbeddingProvider(EmbeddingProvider):
             },
             timeout=60.0,
         )
-    
-    async def embed_query(self, text: str) -> List[float]:
+
+    async def embed_query(self, text: str) -> list[float]:
         embeddings = await self.embed_documents([text])
         return embeddings[0] if embeddings else []
-    
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         all_embeddings = []
-        
+
         for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
-            
+            batch = texts[i : i + self.batch_size]
+
             payload = {
                 "model": self.model,
                 "input": batch,
             }
             if self.dimensions:
                 payload["dimensions"] = self.dimensions
-            
+
             try:
                 response = await self._client.post("/embeddings", json=payload)
                 response.raise_for_status()
@@ -135,9 +132,9 @@ class OpenRouterEmbeddingProvider(EmbeddingProvider):
             except Exception as e:
                 logger.error(f"OpenRouter embedding failed: {e}")
                 raise
-        
+
         return all_embeddings
-    
+
     def get_dimensions(self) -> int:
         if self._dimensions is None:
             model_dims = {
@@ -149,14 +146,14 @@ class OpenRouterEmbeddingProvider(EmbeddingProvider):
             }
             self._dimensions = model_dims.get(self.model, 1536)
         return self._dimensions
-    
+
     async def close(self):
         await self._client.aclose()
 
 
 class OllamaEmbeddingProvider(EmbeddingProvider):
     """Local embeddings via Ollama (OpenAI-compatible /api/embeddings endpoint)."""
-    
+
     def __init__(
         self,
         host: str = "http://localhost:11434",
@@ -168,17 +165,17 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
         self.batch_size = batch_size
         self._dimensions = None
         self._client = httpx.AsyncClient(timeout=120.0)
-    
-    async def embed_query(self, text: str) -> List[float]:
+
+    async def embed_query(self, text: str) -> list[float]:
         embeddings = await self.embed_documents([text])
         return embeddings[0] if embeddings else []
-    
-    async def embed_documents(self, texts: List[str]) -> List[List[float]]:
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         all_embeddings = []
-        
+
         for i in range(0, len(texts), self.batch_size):
-            batch = texts[i:i + self.batch_size]
-            
+            batch = texts[i : i + self.batch_size]
+
             # Ollama processes one at a time
             batch_embeddings = []
             for text in batch:
@@ -196,11 +193,11 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
                 except Exception as e:
                     logger.error(f"Ollama embedding failed: {e}")
                     raise
-            
+
             all_embeddings.extend(batch_embeddings)
-        
+
         return all_embeddings
-    
+
     def get_dimensions(self) -> int:
         if self._dimensions is None:
             model_dims = {
@@ -212,22 +209,22 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
             }
             self._dimensions = model_dims.get(self.model, 768)
         return self._dimensions
-    
+
     async def close(self):
         await self._client.aclose()
 
 
 def get_embedding_provider(settings) -> EmbeddingProvider:
     """Factory function to get the configured embedding provider."""
-    
+
     provider = settings.embedding_provider.lower()
-    
+
     if provider == "fastembed":
         return FastEmbedProvider(
             model_name=settings.fastembed_model,
             batch_size=settings.fastembed_batch_size,
         )
-    
+
     elif provider == "openrouter":
         api_key = settings.openrouter_embedding_api_key or settings.openrouter_api_key
         if not api_key:
@@ -238,13 +235,15 @@ def get_embedding_provider(settings) -> EmbeddingProvider:
             dimensions=settings.openrouter_embedding_dimensions,
             batch_size=settings.openrouter_embedding_batch_size,
         )
-    
+
     elif provider == "ollama":
         return OllamaEmbeddingProvider(
             host=settings.ollama_embedding_host,
             model=settings.ollama_embedding_model,
             batch_size=settings.ollama_embedding_batch_size,
         )
-    
+
     else:
-        raise ValueError(f"Unknown embedding provider: {provider}. Supported: fastembed, openrouter, ollama")
+        raise ValueError(
+            f"Unknown embedding provider: {provider}. Supported: fastembed, openrouter, ollama"
+        )

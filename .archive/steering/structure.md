@@ -19,7 +19,7 @@ epa-knowledge-graph/
 │       ├── metadata.py
 │       ├── chroma_client.py
 │       ├── config.py
-│       ├── requirements.txt
+│       ├── pyproject.toml
 │       └── tests/
 ├── docs/                                           # Documentation (new)
 │   ├── architecture.md

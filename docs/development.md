@@ -188,26 +188,14 @@ pdf-scientist/
 │       └── src/main.rs           # Tauri commands
 ├── python/
 │   └── ingestion/                # FastAPI service
-│       ├── main.py               # App + endpoints
-│       ├── chunking.py           # EPAMethodChunker
-│       ├── embeddings.py         # Provider abstractions
-│       ├── metadata.py           # LLM metadata extraction
-│       ├── chroma_client.py      # ChromaManager
-│       ├── config.py             # Pydantic Settings
-│       ├── requirements.txt
+│       ├── main.py
+│       ├── chunking.py
+│       ├── embeddings.py
+│       ├── metadata.py
+│       ├── chroma_client.py
+│       ├── config.py
+│       ├── pyproject.toml
 │       └── tests/
-├── docs/                         # Documentation
-│   ├── architecture.md
-│   ├── api.md
-│   └── ingestion-guide.md
-├── .github/workflows/            # CI/CD (planned)
-├── docker/                       # Dockerfiles (planned)
-├── .env.example                  # Template
-├── README.md
-├── CONTRIBUTING.md
-├── CHANGELOG.md
-├── SECURITY.md
-└── LICENSE
 ```
 
 ---

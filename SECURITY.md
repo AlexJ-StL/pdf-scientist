@@ -71,7 +71,7 @@ We will acknowledge receipt within 48 hours and provide a timeline for fix.
 cargo audit
 
 # Python: Check for vulnerabilities
-pip-audit -r python/ingestion/requirements.txt
+uv pip audit -p python/ingestion/pyproject.toml
 
 # Node (when UI exists): Audit
 npm audit
@@ -104,7 +104,7 @@ npm audit
 
 ## Incident Response
 
-1. **Detect** — Monitoring, user reports, dependency alerts (`cargo audit`, `pip-audit`, Dependabot)
+1. **Detect** — Monitoring, user reports, dependency alerts (`cargo audit`, `uv pip audit` via pyproject.toml, Dependabot)
 2. **Assess** — Severity (CVSS), affected versions, exploitability
 3. **Contain** — Disable affected feature, rotate keys, deploy hotfix
 4. **Resolve** — Patch, test, release

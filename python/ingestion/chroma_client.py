@@ -1,19 +1,19 @@
 # EPA Knowledge Graph - ChromaDB Client
 
 import logging
-from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
+from typing import Any
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 from chromadb.api.models.Collection import Collection
+from chromadb.config import Settings as ChromaSettings
 
 logger = logging.getLogger(__name__)
 
 
 class ChromaManager:
     """Manages ChromaDB connections and operations."""
-    
+
     def __init__(
         self,
         host: str = "127.0.0.1",
@@ -21,9 +21,9 @@ class ChromaManager:
         collection_name: str = "epa_methods",
         persist_dir: Path = Path("./data/chroma"),
         use_cloud: bool = False,
-        api_key: Optional[str] = None,
-        tenant: Optional[str] = None,
-        database: Optional[str] = None,
+        api_key: str | None = None,
+        tenant: str | None = None,
+        database: str | None = None,
     ):
         self.host = host
         self.port = port
@@ -33,10 +33,10 @@ class ChromaManager:
         self.api_key = api_key
         self.tenant = tenant
         self.database = database
-        
+
         self._client = None
         self._collection = None
-    
+
     async def initialize(self):
         """Initialize ChromaDB client and collection."""
         if self.use_cloud and self.api_key:
@@ -67,7 +67,7 @@ class ChromaManager:
                     host=self.host,
                     port=self.port,
                 )
-        
+
         # Get or create collection
         try:
             self._collection = self._client.get_collection(name=self.collection_name)
@@ -78,7 +78,7 @@ class ChromaManager:
                 metadata={"hnsw:space": "cosine"},
             )
             logger.info(f"Created new collection: {self.collection_name}")
-    
+
     def is_healthy(self) -> bool:
         """Check if ChromaDB connection is healthy."""
         try:
@@ -88,25 +88,25 @@ class ChromaManager:
         except Exception:
             pass
         return False
-    
+
     async def close(self):
         """Close connections."""
         # ChromaDB client doesn't need explicit close
         pass
-    
+
     def get_collection(self) -> Collection:
         """Get the collection instance."""
         if not self._collection:
             raise RuntimeError("ChromaDB not initialized. Call initialize() first.")
         return self._collection
-    
+
     async def upsert(
         self,
         collection_name: str,
-        documents: List[str],
-        metadatas: List[Dict[str, Any]],
-        ids: List[str],
-        embeddings: List[List[float]],
+        documents: list[str],
+        metadatas: list[dict[str, Any]],
+        ids: list[str],
+        embeddings: list[list[float]],
     ):
         """Upsert documents into collection."""
         if collection_name != self.collection_name:
@@ -120,7 +120,7 @@ class ChromaManager:
                 )
         else:
             collection = self._collection
-        
+
         collection.upsert(
             documents=documents,
             metadatas=metadatas,
@@ -128,14 +128,14 @@ class ChromaManager:
             embeddings=embeddings,
         )
         logger.debug(f"Upserted {len(documents)} documents to {collection_name}")
-    
+
     async def query(
         self,
         collection_name: str,
-        query_embedding: List[float],
+        query_embedding: list[float],
         n_results: int = 5,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        where: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Query collection for similar documents."""
         if collection_name != self.collection_name:
             try:
@@ -144,21 +144,21 @@ class ChromaManager:
                 return {"documents": [[]], "metadatas": [[]], "distances": [[]], "ids": [[]]}
         else:
             collection = self._collection
-        
+
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=n_results,
             where=where,
             include=["documents", "metadatas", "distances"],
         )
-        
+
         return results
-    
+
     async def get(
         self,
         collection_name: str,
-        ids: List[str],
-    ) -> Optional[Dict[str, Any]]:
+        ids: list[str],
+    ) -> dict[str, Any] | None:
         """Get documents by IDs."""
         if collection_name != self.collection_name:
             try:
@@ -167,13 +167,13 @@ class ChromaManager:
                 return None
         else:
             collection = self._collection
-        
+
         return collection.get(ids=ids)
-    
+
     async def delete(
         self,
         collection_name: str,
-        ids: List[str],
+        ids: list[str],
     ):
         """Delete documents by IDs."""
         if collection_name != self.collection_name:
@@ -183,15 +183,15 @@ class ChromaManager:
                 return
         else:
             collection = self._collection
-        
+
         collection.delete(ids=ids)
         logger.debug(f"Deleted {len(ids)} documents from {collection_name}")
-    
+
     async def count(self, collection_name: str = None) -> int:
         """Count documents in collection."""
         if collection_name is None:
             collection_name = self.collection_name
-        
+
         if collection_name != self.collection_name:
             try:
                 collection = self._client.get_collection(name=collection_name)
@@ -199,10 +199,10 @@ class ChromaManager:
                 return 0
         else:
             collection = self._collection
-        
+
         return collection.count()
-    
-    async def list_collections(self) -> List[str]:
+
+    async def list_collections(self) -> list[str]:
         """List all collection names."""
         return [c.name for c in self._client.list_collections()]
 
@@ -214,7 +214,7 @@ async def create_chroma_manager(
     collection_name: str = "epa_methods",
     persist_dir: Path = Path("./data/chroma"),
     use_cloud: bool = False,
-    api_key: Optional[str] = None,
+    api_key: str | None = None,
 ) -> ChromaManager:
     """Create and initialize a ChromaManager."""
     manager = ChromaManager(

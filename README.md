@@ -111,29 +111,8 @@ epa-knowledge-graph/
 │       ├── metadata.py
 │       ├── chroma_client.py
 │       ├── config.py
-│       ├── requirements.txt
+│       ├── pyproject.toml
 │       └── tests/
-├── docs/                                           # Documentation (new)
-│   ├── architecture.md
-│   ├── api.md
-│   ├── phase-1-ingestion.md
-│   ├── development.md
-│   └── ingestion-guide.md
-├── .docs/                                         # Historical/legacy docs
-│   ├── steering/                               # Project steering configs
-│   ├── EPA-Knowledge-Graph-Plan.md
-│   └── *.txt                                         # Legacy planning docs
-├── docker/                                     # Dockerfiles (planned)
-├── .github/workflows/                 # CI/CD (planned)
-├── .env.example                           # Environment template
-├── README.md
-├── CONTRIBUTING.md
-├── CHANGELOG.md
-├── SECURITY.md
-├── DEVELOPMENT.md                # Symlink to docs/development.md
-├── LICENSE
-├── .gitignore
-└── target/                                        # Rust build artifacts (gitignored)
 ```
 
 ---
