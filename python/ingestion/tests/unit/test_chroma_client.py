@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from ingestion.chroma_client import ChromaManager, create_chroma_manager
 
 

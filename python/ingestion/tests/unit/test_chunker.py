@@ -1,8 +1,7 @@
 import sys
 from unittest.mock import patch
 
-import pytest
-from ingestion.chunking import Chunk, EPAMethodChunker, chunk_pdf
+from ingestion.chunking import Chunk, EPAMethodChunker
 
 
 class TestChunkerDefaults:

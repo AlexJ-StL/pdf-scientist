@@ -1,15 +1,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
 from ingestion.main import (
-    IngestRequest,
     app,
     lifespan,
     process_pdf,
-    query_knowledge_graph,
 )
 
 
@@ -27,14 +24,15 @@ class TestLifespan:
         mock_meta = MagicMock()
         mock_chunker = MagicMock()
 
-        with patch("ingestion.main.ChromaManager", return_value=mock_chroma), patch(
-            "ingestion.main.get_embedding_provider", return_value=mock_embed
-        ), patch("ingestion.main.get_metadata_extractor", return_value=mock_meta), patch(
-            "ingestion.main.EPAMethodChunker", return_value=mock_chunker
-        ), patch("ingestion.main.chroma_manager", None), patch(
-            "ingestion.main.embedding_provider", None
-        ), patch("ingestion.main.metadata_extractor", None), patch(
-            "ingestion.main.chunker", None
+        with (
+            patch("ingestion.main.ChromaManager", return_value=mock_chroma),
+            patch("ingestion.main.get_embedding_provider", return_value=mock_embed),
+            patch("ingestion.main.get_metadata_extractor", return_value=mock_meta),
+            patch("ingestion.main.EPAMethodChunker", return_value=mock_chunker),
+            patch("ingestion.main.chroma_manager", None),
+            patch("ingestion.main.embedding_provider", None),
+            patch("ingestion.main.metadata_extractor", None),
+            patch("ingestion.main.chunker", None),
         ):
             async with lifespan(app):
                 import ingestion.main as main_module
@@ -52,10 +50,11 @@ class TestLifespan:
         mock_meta = MagicMock()
         mock_chunker = MagicMock()
 
-        with patch("ingestion.main.ChromaManager", return_value=mock_chroma), patch(
-            "ingestion.main.get_embedding_provider", return_value=mock_embed
-        ), patch("ingestion.main.get_metadata_extractor", return_value=mock_meta), patch(
-            "ingestion.main.EPAMethodChunker", return_value=mock_chunker
+        with (
+            patch("ingestion.main.ChromaManager", return_value=mock_chroma),
+            patch("ingestion.main.get_embedding_provider", return_value=mock_embed),
+            patch("ingestion.main.get_metadata_extractor", return_value=mock_meta),
+            patch("ingestion.main.EPAMethodChunker", return_value=mock_chunker),
         ):
             async with lifespan(app):
                 pass

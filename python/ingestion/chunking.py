@@ -258,7 +258,7 @@ class EPAMethodChunker:
                 if start_char >= 0:
                     sections.append(
                         {
-                            "number": f"{i+1}.0",
+                            "number": f"{i + 1}.0",
                             "title": entry["title"],
                             "start": start_char,
                             "page": entry["page"],
@@ -285,7 +285,9 @@ class EPAMethodChunker:
 
         return sections
 
-    def _convert_chunks_to_dicts(self, chunks: list[Chunk], source_pdf: str) -> list[dict[str, Any]]:
+    def _convert_chunks_to_dicts(
+        self, chunks: list[Chunk], source_pdf: str
+    ) -> list[dict[str, Any]]:
         """Convert Chunk dataclasses to ChromaDB-compatible dicts."""
         result = []
         for chunk in chunks:

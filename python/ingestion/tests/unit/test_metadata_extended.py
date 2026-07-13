@@ -1,13 +1,12 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
 
 from ingestion.metadata import (
-    OpenRouterMetadataExtractor,
     OllamaMetadataExtractor,
-    get_metadata_extractor,
+    OpenRouterMetadataExtractor,
 )
 
 
@@ -43,9 +42,7 @@ class TestOpenRouterMetadataExtractor:
     @pytest.mark.asyncio
     async def test_extract_metadata_fallback_on_json_error(self):
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "not valid json"}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": "not valid json"}}]}
         mock_response.raise_for_status = MagicMock()
 
         extractor = OpenRouterMetadataExtractor(api_key="secret")

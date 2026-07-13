@@ -1,8 +1,6 @@
-import json
 from pathlib import Path
 
 import pytest
-from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
 
 from ingestion.main import (

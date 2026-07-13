@@ -6,14 +6,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from pydantic import BaseModel
+
 from .chroma_client import ChromaManager
 from .chunking import EPAMethodChunker
 from .config import settings
-from dotenv import load_dotenv
 from .embeddings import EmbeddingProvider, get_embedding_provider
-from fastapi import BackgroundTasks, FastAPI, HTTPException
 from .metadata import MetadataExtractor, get_metadata_extractor
-from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv()

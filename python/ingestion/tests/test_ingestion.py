@@ -26,10 +26,10 @@ class TestChunker:
         chunker = EPAMethodChunker()
         text = """1.0 Scope and Application
 This method covers the determination of...
-        
+
 1.1 Summary of Method
 A sample is extracted...
-        
+
 2.0 Summary of Method
 The method uses..."""
 

@@ -1,10 +1,11 @@
 import sys
 
 import pytest
+
 from ingestion.embeddings import (
     FastEmbedProvider,
-    OpenRouterEmbeddingProvider,
     OllamaEmbeddingProvider,
+    OpenRouterEmbeddingProvider,
     get_embedding_provider,
 )
 

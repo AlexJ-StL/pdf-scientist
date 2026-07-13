@@ -2,11 +2,9 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from ingestion.chunking import EPAMethodChunker, Chunk
+from ingestion.chunking import EPAMethodChunker
 
 
 class TestEPAMethodChunker:
@@ -88,6 +86,7 @@ The method uses..."""
         # This will return empty list since we don't have a real PDF
         # but we test the method signature and return type
         import fitz
+
         doc = fitz.open()
         toc = chunker.extract_toc(doc)
         assert isinstance(toc, list)

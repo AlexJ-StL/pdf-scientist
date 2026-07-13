@@ -1,10 +1,7 @@
-import re
-
-import pytest
 from ingestion.metadata import (
     MethodMetadata,
-    OpenRouterMetadataExtractor,
     OllamaMetadataExtractor,
+    OpenRouterMetadataExtractor,
     _build_fallback_metadata,
     _extract_date,
     _extract_matrix_keywords,
