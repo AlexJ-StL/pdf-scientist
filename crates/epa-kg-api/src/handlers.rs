@@ -91,3 +91,62 @@ pub async fn ingest_handler(
 pub async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AppState;
+
+    #[tokio::test]
+    async fn health_handler_returns_ok() {
+        let response = health_handler().await;
+        let body = response.0;
+        assert_eq!(body["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn query_handler_returns_placeholder() {
+        let state = AppState::new();
+        let request = QueryRequest { question: "test".into(), top_k: 5, collection: "epa_methods".into() };
+        let result = query_handler(State(state.clone()), Json(request)).await;
+        assert!(result.is_ok());
+        let body = result.unwrap().0;
+        assert!(body.answer.contains("test"));
+    }
+
+    #[tokio::test]
+    async fn ingest_handler_returns_accepted() {
+        let state = AppState::new();
+        let request = IngestRequest { pdf_dir: "/tmp".into(), collection: "epa_methods".into(), force_reindex: false, chunk_size: 512, chunk_overlap: 64, toc_aware: true };
+        let result = ingest_handler(State(state.clone()), Json(request)).await;
+        assert!(result.is_ok());
+        let body = result.unwrap().0;
+        assert_eq!(body.status, "accepted");
+    }
+
+    #[test]
+    fn query_request_deserializes() {
+        let json = r#"{"question":"What is EPA Method 8270?","top_k":3,"collection":"epa_methods"}"#;
+        let req: QueryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.question, "What is EPA Method 8270?");
+        assert_eq!(req.top_k, 3);
+    }
+
+    #[test]
+    fn query_request_defaults() {
+        let json = r#"{"question":"test"}"#;
+        let req: QueryRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.top_k, 5);
+        assert_eq!(req.collection, "epa_methods");
+    }
+
+    #[test]
+    fn ingest_request_defaults() {
+        let json = r#"{"pdf_dir":"/tmp","collection":"epa_methods"}"#;
+        let req: IngestRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(req.chunk_size, 512);
+        assert_eq!(req.chunk_overlap, 64);
+        assert!(req.toc_aware);
+        assert!(!req.force_reindex);
+    }
+}

@@ -12,7 +12,7 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    #[arg(short, long, global = true)]
+    #[arg(short = 'C', long, global = true)]
     config: Option<PathBuf>,
 
     #[arg(short, long, global = true)]
@@ -106,7 +106,7 @@ async fn run_ingest(
     // For now, just log what would happen
     let pdf_files: Vec<_> = std::fs::read_dir(&pdf_dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "pdf"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "pdf"))
         .collect();
 
     tracing::info!("Found {} PDF files", pdf_files.len());
@@ -202,4 +202,82 @@ async fn run_server(_settings: Settings, port: u16) -> Result<()> {
     // TODO: Start Axum server
     println!("Server not yet implemented");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_parse_ingest_command() {
+        let result = Cli::try_parse_from(["epa-kg", "ingest", "--pdf-dir", "/tmp", "--collection", "test"]);
+        assert!(result.is_ok());
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Ingest { pdf_dir, collection, .. } => {
+                assert_eq!(pdf_dir, PathBuf::from("/tmp"));
+                assert_eq!(collection, "test");
+            }
+            _ => panic!("Expected Ingest command"),
+        }
+    }
+
+    #[test]
+    fn cli_parse_query_command() {
+        let result = Cli::try_parse_from(["epa-kg", "query", "--question", "What is EPA 8270?", "--top-k", "3"]);
+        assert!(result.is_ok());
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Query { question, top_k, .. } => {
+                assert_eq!(question, "What is EPA 8270?");
+                assert_eq!(top_k, 3);
+            }
+            _ => panic!("Expected Query command"),
+        }
+    }
+
+    #[test]
+    fn cli_parse_graph_command() {
+        let result = Cli::try_parse_from(["epa-kg", "graph", "--method", "8270E", "--depth", "3"]);
+        assert!(result.is_ok());
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Graph { method, depth, .. } => {
+                assert_eq!(method, "8270E");
+                assert_eq!(depth, 3);
+            }
+            _ => panic!("Expected Graph command"),
+        }
+    }
+
+    #[test]
+    fn cli_parse_serve_command() {
+        let result = Cli::try_parse_from(["epa-kg", "serve", "--port", "9090"]);
+        assert!(result.is_ok());
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Serve { port, .. } => {
+                assert_eq!(port, 9090);
+            }
+            _ => panic!("Expected Serve command"),
+        }
+    }
+
+    #[test]
+    fn run_graph_returns_ok() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let result = run_graph(Settings::default(), "8270E".into(), 2).await;
+            assert!(result.is_ok());
+        });
+    }
+
+    #[test]
+    fn run_server_returns_ok() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            let result = run_server(Settings::default(), 8080).await;
+            assert!(result.is_ok());
+        });
+    }
 }

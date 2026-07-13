@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -9,6 +10,73 @@ import httpx
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+_METHOD_NUMBER_PATTERNS = [
+    (r"(\d{4}[A-Z]?)", False),
+    (r"METHOD\s+(\d{4}[A-Z]?)", True),
+]
+
+_REVISION_PATTERN = r"REVISION\s+([A-Z])(?![A-Z])"
+_DATE_PATTERN = r"(\d{4}[-/]\d{2}[-/]\d{2})"
+_SUPERSEDES_PATTERN = r"SUPERSEDES\s+(METHOD\s+)?(\d{4}[A-Z]?)"
+_MATRIX_KEYWORDS = ["water", "soil", "sediment", "waste", "air", "tissue", "sludge"]
+
+
+def _extract_method_number(text: str, filename: str) -> str:
+    """Extract EPA method number from filename or body text."""
+    upper_filename = filename.upper()
+    for pattern, _ in _METHOD_NUMBER_PATTERNS:
+        match = re.search(pattern, upper_filename)
+        if match:
+            return match.group(1)
+    for pattern, _ in _METHOD_NUMBER_PATTERNS:
+        match = re.search(pattern, text.upper())
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _extract_revision(text: str) -> str:
+    """Extract revision letter from text."""
+    match = re.search(_REVISION_PATTERN, text.upper())
+    return match.group(1) if match else ""
+
+
+def _extract_date(text: str) -> str:
+    """Extract and normalize revision date from text."""
+    match = re.search(_DATE_PATTERN, text)
+    if not match:
+        return ""
+    raw = match.group(1)
+    return raw.replace("/", "-")
+
+
+def _extract_supersedes(text: str) -> str:
+    """Extract superseded method number from text."""
+    match = re.search(_SUPERSEDES_PATTERN, text.upper())
+    return match.group(2) if match else ""
+
+
+def _extract_matrix_keywords(text: str) -> list[str]:
+    """Return EPA matrix keywords present in text."""
+    lower_text = text.lower()
+    return [kw for kw in _MATRIX_KEYWORDS if kw in lower_text]
+
+
+def _build_fallback_metadata(text: str, filename: str) -> dict[str, Any]:
+    """Build metadata dict from regex-based fallback extraction."""
+    return {
+        "method_number": _extract_method_number(text, filename),
+        "method_title": "",
+        "revision": _extract_revision(text),
+        "revision_date": _extract_date(text),
+        "supersedes": _extract_supersedes(text),
+        "status": "",
+        "matrix": _extract_matrix_keywords(text),
+        "analytes": [],
+        "references": [],
+        "section_count": 0,
+    }
 
 
 class MethodMetadata(BaseModel):
@@ -115,50 +183,7 @@ If a field is not found, use empty string or empty list. Be precise."""
 
     def _fallback_extract(self, text: str, filename: str) -> dict[str, Any]:
         """Regex-based fallback extraction."""
-        import re
-
-        metadata = {
-            "method_number": "",
-            "method_title": "",
-            "revision": "",
-            "revision_date": "",
-            "supersedes": "",
-            "status": "",
-            "matrix": [],
-            "analytes": [],
-            "references": [],
-            "section_count": 0,
-        }
-
-        # Extract method number from filename or text
-        method_match = re.search(r"(\d{4}[A-Z]?)", filename.upper())
-        if not method_match:
-            method_match = re.search(r"METHOD\s+(\d{4}[A-Z]?)", text.upper())
-        if method_match:
-            metadata["method_number"] = method_match.group(1)
-
-        # Extract revision
-        rev_match = re.search(r"REVISION\s+([A-Z])", text.upper())
-        if rev_match:
-            metadata["revision"] = rev_match.group(1)
-
-        # Extract date
-        date_match = re.search(r"(\d{4}[-/]\d{2}[-/]\d{2})", text)
-        if date_match:
-            metadata["revision_date"] = date_match.group(1).replace("/", "-")
-
-        # Extract supersedes
-        super_match = re.search(r"SUPERSEDES\s+(METHOD\s+)?(\d{4}[A-Z]?)", text.upper())
-        if super_match:
-            metadata["supersedes"] = super_match.group(2)
-
-        # Extract matrix keywords
-        matrix_keywords = ["water", "soil", "sediment", "waste", "air", "tissue", "sludge"]
-        for kw in matrix_keywords:
-            if kw in text.lower():
-                metadata["matrix"].append(kw)
-
-        return metadata
+        return _build_fallback_metadata(text, filename)
 
     async def close(self):
         await self._client.aclose()
@@ -229,45 +254,7 @@ If a field is not found, use empty string or empty list. Be precise."""
 
     def _fallback_extract(self, text: str, filename: str) -> dict[str, Any]:
         """Same fallback as OpenRouter."""
-        import re
-
-        metadata = {
-            "method_number": "",
-            "method_title": "",
-            "revision": "",
-            "revision_date": "",
-            "supersedes": "",
-            "status": "",
-            "matrix": [],
-            "analytes": [],
-            "references": [],
-            "section_count": 0,
-        }
-
-        method_match = re.search(r"(\d{4}[A-Z]?)", filename.upper())
-        if not method_match:
-            method_match = re.search(r"METHOD\s+(\d{4}[A-Z]?)", text.upper())
-        if method_match:
-            metadata["method_number"] = method_match.group(1)
-
-        rev_match = re.search(r"REVISION\s+([A-Z])", text.upper())
-        if rev_match:
-            metadata["revision"] = rev_match.group(1)
-
-        date_match = re.search(r"(\d{4}[-/]\d{2}[-/]\d{2})", text)
-        if date_match:
-            metadata["revision_date"] = date_match.group(1).replace("/", "-")
-
-        super_match = re.search(r"SUPERSEDES\s+(METHOD\s+)?(\d{4}[A-Z]?)", text.upper())
-        if super_match:
-            metadata["supersedes"] = super_match.group(2)
-
-        matrix_keywords = ["water", "soil", "sediment", "waste", "air", "tissue", "sludge"]
-        for kw in matrix_keywords:
-            if kw in text.lower():
-                metadata["matrix"].append(kw)
-
-        return metadata
+        return _build_fallback_metadata(text, filename)
 
     async def close(self):
         await self._client.aclose()

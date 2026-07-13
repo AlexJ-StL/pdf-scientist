@@ -51,3 +51,88 @@ pub enum Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_error_displays_correctly() {
+        let err = Error::Config(config::ConfigError::NotFound("missing".into()));
+        assert!(err.to_string().contains("Configuration error"));
+    }
+
+    #[test]
+    fn io_error_conversion() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file missing");
+        let err = Error::from(io_err);
+        assert!(err.to_string().contains("IO error"));
+    }
+
+    #[test]
+    fn chroma_error_message() {
+        let err = Error::Chroma("connection refused".into());
+        assert_eq!(err.to_string(), "ChromaDB error: connection refused");
+    }
+
+    #[test]
+    fn pdf_parse_error_message() {
+        let err = Error::PdfParse("invalid PDF header".into());
+        assert_eq!(err.to_string(), "PDF parsing error: invalid PDF header");
+    }
+
+    #[test]
+    fn embedding_error_message() {
+        let err = Error::Embedding("model not loaded".into());
+        assert_eq!(err.to_string(), "Embedding error: model not loaded");
+    }
+
+    #[test]
+    fn llm_error_message() {
+        let err = Error::Llm("rate limited".into());
+        assert_eq!(err.to_string(), "LLM error: rate limited");
+    }
+
+    #[test]
+    fn ingestion_error_message() {
+        let err = Error::Ingestion("empty PDF".into());
+        assert_eq!(err.to_string(), "Ingestion error: empty PDF");
+    }
+
+    #[test]
+    fn graph_error_message() {
+        let err = Error::Graph("cycle detected".into());
+        assert_eq!(err.to_string(), "Graph error: cycle detected");
+    }
+
+    #[test]
+    fn not_found_error_message() {
+        let err = Error::NotFound("method 8270E".into());
+        assert_eq!(err.to_string(), "Not found: method 8270E");
+    }
+
+    #[test]
+    fn internal_error_message() {
+        let err = Error::Internal("unexpected state".into());
+        assert_eq!(err.to_string(), "Internal error: unexpected state");
+    }
+
+    #[test]
+    fn result_type_alias_works() {
+        fn returns_ok() -> Result<i32> {
+            Ok(42)
+        }
+        fn returns_err() -> Result<i32> {
+            Err(Error::Internal("boom".into()))
+        }
+        assert_eq!(returns_ok().unwrap(), 42);
+        assert!(returns_err().is_err());
+    }
+
+    #[test]
+    fn error_debug_does_not_panic() {
+        let err = Error::Ingestion("test".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("Ingestion"));
+    }
+}

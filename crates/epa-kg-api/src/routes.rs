@@ -16,3 +16,14 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/ingest", post(ingest_handler))
         .with_state(state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn router_can_be_constructed() {
+        let state = AppState::new();
+        let _ = router(state);
+    }
+}

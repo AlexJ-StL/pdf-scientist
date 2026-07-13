@@ -224,15 +224,20 @@ class EPAMethodChunker:
         """
         logger.info(f"Chunking {pdf_path.name}...")
 
-        # Open with PyMuPDF for text + TOC
         doc = fitz.open(str(pdf_path))
+        full_text, page_map = self._extract_text_and_page_map(doc)
+        doc.close()
 
-        # Extract TOC
         toc = self.extract_toc(doc) if self.toc_aware else []
+        sections = self._build_sections(full_text, toc)
+        chunks = self.chunk_by_sections(full_text, sections, pdf_path.name, page_map)
 
-        # Extract full text with page mapping
+        return self._convert_chunks_to_dicts(chunks, pdf_path.name)
+
+    def _extract_text_and_page_map(self, doc: fitz.Document) -> tuple[str, dict[int, int]]:
+        """Extract full text and character-position to page-number mapping."""
         full_text = ""
-        page_map = {}  # char_position -> page_number
+        page_map: dict[int, int] = {}
 
         for page_num in range(len(doc)):
             page = doc[page_num]
@@ -241,12 +246,13 @@ class EPAMethodChunker:
             full_text += page_text + "\n\n"
             page_map[page_start] = page_num
 
-        doc.close()
+        return full_text, page_map
 
-        # Extract sections
+    def _build_sections(self, full_text: str, toc: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Build section list from TOC or regex fallback."""
+        sections: list[dict[str, Any]] = []
+
         if toc:
-            # Convert TOC to section format
-            sections = []
             for i, entry in enumerate(toc):
                 start_char = self._find_section_in_text(full_text, entry["title"])
                 if start_char >= 0:
@@ -259,18 +265,15 @@ class EPAMethodChunker:
                         }
                     )
 
-            # Add end positions
             for i, sec in enumerate(sections):
                 if i + 1 < len(sections):
                     sec["end"] = sections[i + 1]["start"]
                 else:
                     sec["end"] = len(full_text)
         else:
-            # Fallback: regex-based section detection
             sections = self.extract_sections_from_text(full_text)
 
         if not sections:
-            # Last resort: treat entire document as one section
             sections = [
                 {
                     "number": "1.0",
@@ -280,12 +283,12 @@ class EPAMethodChunker:
                 }
             ]
 
-        # Chunk by sections
-        chunks = self.chunk_by_sections(full_text, sections, pdf_path.name, page_map)
+        return sections
 
-        # Convert to dict format
+    def _convert_chunks_to_dicts(self, chunks: list[Chunk], source_pdf: str) -> list[dict[str, Any]]:
+        """Convert Chunk dataclasses to ChromaDB-compatible dicts."""
         result = []
-        for i, chunk in enumerate(chunks):
+        for chunk in chunks:
             result.append(
                 {
                     "text": chunk.text,
@@ -297,8 +300,7 @@ class EPAMethodChunker:
                     "page_end": chunk.page_end,
                 }
             )
-
-        logger.info(f"Created {len(result)} chunks from {pdf_path.name}")
+        logger.info(f"Created {len(result)} chunks from {source_pdf}")
         return result
 
     def _find_section_in_text(self, text: str, section_title: str) -> int:

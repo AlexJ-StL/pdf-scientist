@@ -171,26 +171,9 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
     if not pdf_dir.exists():
         raise HTTPException(status_code=400, detail=f"PDF directory does not exist: {pdf_dir}")
 
-    # Override chunker settings if provided
-    chunk_size = request.chunk_size or settings.chunk_size
-    chunk_overlap = request.chunk_overlap or settings.chunk_overlap
-    toc_aware = request.toc_aware if request.toc_aware is not None else settings.toc_aware
+    local_chunker = _get_chunker_for_request(request)
 
-    if (
-        chunk_size != settings.chunk_size
-        or chunk_overlap != settings.chunk_overlap
-        or toc_aware != settings.toc_aware
-    ):
-        local_chunker = EPAMethodChunker(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            toc_aware=toc_aware,
-        )
-    else:
-        local_chunker = chunker
-
-    # Find PDF files
-    pdf_files = list(pdf_dir.glob("*.pdf"))
+    pdf_files = _find_pdf_files(pdf_dir)
     if not pdf_files:
         raise HTTPException(status_code=400, detail=f"No PDF files found in {pdf_dir}")
 
@@ -202,7 +185,6 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
 
     for pdf_file in pdf_files:
         try:
-            # Check file size
             file_size_mb = pdf_file.stat().st_size / (1024 * 1024)
             if file_size_mb > settings.max_file_size_mb:
                 errors.append(
@@ -210,14 +192,10 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
                 )
                 continue
 
-            # Process PDF
-            result = await process_pdf(
+            result = await _process_single_pdf(
                 pdf_file=pdf_file,
                 collection=collection,
                 chunker=local_chunker,
-                embedding_provider=embedding_provider,
-                metadata_extractor=metadata_extractor,
-                chroma_manager=chroma_manager,
                 force_reindex=request.force_reindex,
             )
 
@@ -236,6 +214,49 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
         chunks_created=chunks_created,
         time_ms=elapsed_ms,
         errors=errors,
+    )
+
+
+def _get_chunker_for_request(request: IngestRequest) -> EPAMethodChunker:
+    """Return the chunker to use, honoring request overrides when provided."""
+    chunk_size = request.chunk_size or settings.chunk_size
+    chunk_overlap = request.chunk_overlap or settings.chunk_overlap
+    toc_aware = request.toc_aware if request.toc_aware is not None else settings.toc_aware
+
+    if (
+        chunk_size != settings.chunk_size
+        or chunk_overlap != settings.chunk_overlap
+        or toc_aware != settings.toc_aware
+    ):
+        return EPAMethodChunker(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            toc_aware=toc_aware,
+        )
+
+    return chunker
+
+
+def _find_pdf_files(pdf_dir: Path) -> list[Path]:
+    """Return PDF files in the given directory."""
+    return list(pdf_dir.glob("*.pdf"))
+
+
+async def _process_single_pdf(
+    pdf_file: Path,
+    collection: str,
+    chunker: EPAMethodChunker,
+    force_reindex: bool,
+) -> dict[str, int]:
+    """Process a single PDF and return chunk count."""
+    return await process_pdf(
+        pdf_file=pdf_file,
+        collection=collection,
+        chunker=chunker,
+        embedding_provider=embedding_provider,
+        metadata_extractor=metadata_extractor,
+        chroma_manager=chroma_manager,
+        force_reindex=force_reindex,
     )
 
 
@@ -311,21 +332,69 @@ async def process_pdf(
     """Process a single PDF file with batch embeddings."""
     logger.info(f"Processing {pdf_file.name}...")
 
-    # Extract text and structure (synchronous call, not awaited)
     chunks = chunker.chunk_pdf(pdf_file)
 
     if not chunks:
         logger.warning(f"No chunks extracted from {pdf_file.name}")
         return {"chunks_created": 0}
 
-    # Extract metadata (using first chunk for document-level metadata)
-    doc_metadata = {}
-    if metadata_extractor and chunks:
-        doc_metadata = await metadata_extractor.extract_metadata(chunks[0]["text"], pdf_file.name)
-
+    doc_metadata = await _extract_document_metadata(chunks, pdf_file.name, metadata_extractor)
     method_num = doc_metadata.get("method_number", "UNKNOWN")
 
-    # Pass 1: Filter new chunks and collect texts for batch embedding
+    new_chunks, new_texts = await _filter_new_chunks(
+        chunks=chunks,
+        method_num=method_num,
+        collection=collection,
+        force_reindex=force_reindex,
+        chroma_manager=chroma_manager,
+    )
+
+    if not new_texts:
+        logger.info(f"All {len(chunks)} chunks already indexed for {pdf_file.name}, skipping")
+        return {"chunks_created": 0}
+
+    new_embeddings = await embedding_provider.embed_documents(new_texts)
+
+    documents, metadatas, ids, embeddings = _build_upsert_payload(
+        new_chunks=new_chunks,
+        new_embeddings=new_embeddings,
+        method_num=method_num,
+        doc_metadata=doc_metadata,
+        pdf_file=pdf_file,
+    )
+
+    if documents:
+        await chroma_manager.upsert(
+            collection_name=collection,
+            documents=documents,
+            metadatas=metadatas,
+            ids=ids,
+            embeddings=embeddings,
+        )
+        logger.info(f"Stored {len(documents)} chunks from {pdf_file.name}")
+
+    return {"chunks_created": len(documents)}
+
+
+async def _extract_document_metadata(
+    chunks: list[dict[str, Any]],
+    filename: str,
+    metadata_extractor: MetadataExtractor | None,
+) -> dict[str, Any]:
+    """Extract document-level metadata from the first chunk."""
+    if metadata_extractor and chunks:
+        return await metadata_extractor.extract_metadata(chunks[0]["text"], filename)
+    return {}
+
+
+async def _filter_new_chunks(
+    chunks: list[dict[str, Any]],
+    method_num: str,
+    collection: str,
+    force_reindex: bool,
+    chroma_manager: ChromaManager,
+) -> tuple[list[tuple[int, dict[str, Any]]], list[str]]:
+    """Return chunks that need indexing and their texts for batch embedding."""
     new_chunks = []
     new_texts = []
 
@@ -333,7 +402,6 @@ async def process_pdf(
         section = chunk.get("section", "0")
         chunk_id = f"METHOD_{method_num}_{section}_{i}"
 
-        # Skip if exists and not force reindex
         if not force_reindex:
             existing = await chroma_manager.get(collection, [chunk_id])
             if existing and existing.get("ids"):
@@ -343,15 +411,17 @@ async def process_pdf(
         new_chunks.append((i, chunk))
         new_texts.append(chunk["text"])
 
-    if not new_texts:
-        logger.info(f"All {len(chunks)} chunks already indexed for {pdf_file.name}, skipping")
-        return {"chunks_created": 0}
+    return new_chunks, new_texts
 
-    # Pass 2: Batch embed all new texts at once (embeddings provider batches internally)
-    logger.info(f"Batch embedding {len(new_texts)} chunks for {pdf_file.name}...")
-    new_embeddings = await embedding_provider.embed_documents(new_texts)
 
-    # Pass 3: Build and store with sanitized metadata
+def _build_upsert_payload(
+    new_chunks: list[tuple[int, dict[str, Any]]],
+    new_embeddings: list[list[float]],
+    method_num: str,
+    doc_metadata: dict[str, Any],
+    pdf_file: Path,
+) -> tuple[list[str], list[dict[str, Any]], list[str], list[list[float]]]:
+    """Build documents, metadatas, ids, and embeddings for ChromaDB upsert."""
     documents = []
     metadatas = []
     ids = []
@@ -380,18 +450,7 @@ async def process_pdf(
         ids.append(chunk_id)
         embeddings.append(embedding)
 
-    # Store in ChromaDB
-    if documents:
-        await chroma_manager.upsert(
-            collection_name=collection,
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids,
-            embeddings=embeddings,
-        )
-        logger.info(f"Stored {len(documents)} chunks from {pdf_file.name}")
-
-    return {"chunks_created": len(documents)}
+    return documents, metadatas, ids, embeddings
 
 
 if __name__ == "__main__":
