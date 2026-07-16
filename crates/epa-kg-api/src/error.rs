@@ -6,6 +6,7 @@ use axum::{
     Json,
 };
 use epa_kg_core::Error as CoreError;
+use reqwest::Error as ReqwestError;
 use serde_json::json;
 
 /// Wraps a core error so handlers can return Axum-compatible responses.
@@ -15,6 +16,12 @@ pub struct ApiError(pub CoreError);
 impl From<CoreError> for ApiError {
     fn from(err: CoreError) -> Self {
         ApiError(err)
+    }
+}
+
+impl From<ReqwestError> for ApiError {
+    fn from(err: ReqwestError) -> Self {
+        ApiError(CoreError::Internal(format!("HTTP error: {}", err)))
     }
 }
 
@@ -35,6 +42,7 @@ impl IntoResponse for ApiError {
             | CoreError::Internal(_)
             | CoreError::Serialization(_)
             | CoreError::UrlParse(_)
+            | CoreError::Http(_)
             | CoreError::Uuid(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let body = json!({ "error": self.0.to_string() });
@@ -74,7 +82,9 @@ mod tests {
     async fn response_body_contains_error_message() {
         let err = ApiError(CoreError::Internal("boom".into()));
         let response = err.into_response();
-        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json["error"].as_str().unwrap().contains("Internal error"));
         assert!(json["error"].as_str().unwrap().contains("boom"));

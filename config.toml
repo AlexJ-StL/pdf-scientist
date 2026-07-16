@@ -1,0 +1,33 @@
+[app]
+host = "127.0.0.1"
+port = 8080
+log_level = "info"
+data_dir = "./data"
+
+[database]
+url = "postgresql://postgres:postgres@localhost:5432/epa_kg"
+max_connections = 10
+min_connections = 1
+
+[chroma]
+host = "127.0.0.1"
+port = 8000
+collection_name = "epa_methods"
+persist_dir = "./data/chroma"
+use_cloud = false
+
+[ingestion]
+pdf_dir = "./epa-methods"
+chunk_size = 512
+chunk_overlap = 64
+toc_aware = true
+extract_tables = true
+max_file_size_mb = 100
+
+[embedding]
+provider = "FastEmbed"
+model = "BAAI/bge-small-en-v1.5"
+batch_size = 32
+
+[llm]
+provider = "None"

@@ -1,0 +1,41 @@
+{
+  "method": "0001",
+  "sample_text": "This method references Method 0002 for sample preparation and Section 4.2.1 for extraction. Method 0001 supersedes Method 0000. See also SW-846 0003 for cleanup procedures.",
+  "expected_edges": [
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0002",
+      "edge_type": "REFERENCES",
+      "confidence": 0.9,
+      "context": "Method 0002"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0000",
+      "edge_type": "REFERENCES",
+      "confidence": 0.9,
+      "context": "Method 0000"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0003",
+      "edge_type": "REFERENCES",
+      "confidence": 0.9,
+      "context": "SW-846 0003"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0001_4_2_1",
+      "edge_type": "CITES_SECTION",
+      "confidence": 0.85,
+      "context": "Section 4.2.1"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0000",
+      "edge_type": "SUPERSEDES",
+      "confidence": 0.95,
+      "context": "Method 0001 supersedes Method 0000"
+    }
+  ]
+}

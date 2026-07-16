@@ -1,6 +1,7 @@
 //! Configuration management for EPA Knowledge Graph
 
 use config::{Config, Environment, File};
+use dotenvy;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -31,15 +32,14 @@ impl Default for Settings {
 
 impl Settings {
     pub fn load() -> crate::Result<Self> {
-        let mut builder = Config::builder()
-            .add_source(File::with_name("config").required(false))
-            .add_source(File::with_name(".env").required(false))
-            .add_source(Environment::with_prefix("EPA_KG").separator("__"));
-
-        // Allow .env file override
+        // Load .env file if it exists
         if std::path::Path::new(".env").exists() {
-            builder = builder.add_source(File::with_name(".env").required(false));
+            dotenvy::from_path(".env").ok();
         }
+
+        let builder = Config::builder()
+            .add_source(File::with_name("config").required(false))
+            .add_source(Environment::with_prefix("EPA_KG").separator("__"));
 
         let settings: Settings = builder.build()?.try_deserialize()?;
         Ok(settings)
@@ -204,7 +204,10 @@ mod tests {
         assert_eq!(settings.ingestion.chunk_size, 512);
         assert_eq!(settings.ingestion.chunk_overlap, 64);
         assert!(settings.ingestion.toc_aware);
-        assert!(matches!(settings.embedding, EmbeddingSettings::FastEmbed { .. }));
+        assert!(matches!(
+            settings.embedding,
+            EmbeddingSettings::FastEmbed { .. }
+        ));
         assert!(matches!(settings.llm, LlmSettings::Ollama { .. }));
     }
 
@@ -242,7 +245,12 @@ mod tests {
     fn llm_settings_defaults() {
         let llm = LlmSettings::default();
         match llm {
-            LlmSettings::Ollama { host, model, temperature, max_tokens } => {
+            LlmSettings::Ollama {
+                host,
+                model,
+                temperature,
+                max_tokens,
+            } => {
                 assert_eq!(host, "http://localhost:11434");
                 assert_eq!(model, "llama3.2:3b");
                 assert!((temperature - 0.1).abs() < f32::EPSILON);
@@ -263,7 +271,12 @@ mod tests {
         let json = serde_json::to_string(&original).unwrap();
         let parsed: EmbeddingSettings = serde_json::from_str(&json).unwrap();
         match parsed {
-            EmbeddingSettings::OpenRouter { api_key, model, dimensions, batch_size } => {
+            EmbeddingSettings::OpenRouter {
+                api_key,
+                model,
+                dimensions,
+                batch_size,
+            } => {
                 assert_eq!(api_key, "test-key");
                 assert_eq!(model, "openai/text-embedding-3-small");
                 assert_eq!(dimensions, Some(1536));
@@ -287,19 +300,43 @@ mod tests {
         let json = serde_json::to_string(&settings).expect("serialize");
         let parsed: Settings = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(parsed.app.host, settings.app.host);
-        assert_eq!(parsed.database.max_connections, settings.database.max_connections);
-        assert_eq!(parsed.chroma.collection_name, settings.chroma.collection_name);
+        assert_eq!(
+            parsed.database.max_connections,
+            settings.database.max_connections
+        );
+        assert_eq!(
+            parsed.chroma.collection_name,
+            settings.chroma.collection_name
+        );
         assert_eq!(parsed.ingestion.chunk_size, settings.ingestion.chunk_size);
-        assert_eq!(parsed.ingestion.chunk_overlap, settings.ingestion.chunk_overlap);
-        assert!(matches!(parsed.embedding, EmbeddingSettings::FastEmbed { .. }));
+        assert_eq!(
+            parsed.ingestion.chunk_overlap,
+            settings.ingestion.chunk_overlap
+        );
+        assert!(matches!(
+            parsed.embedding,
+            EmbeddingSettings::FastEmbed { .. }
+        ));
         assert!(matches!(parsed.llm, LlmSettings::Ollama { .. }));
     }
 
     #[test]
     fn embedding_settings_variants_serialize_distinctly() {
-        let fast = EmbeddingSettings::FastEmbed { model: "BGE".into(), batch_size: 16 };
-        let or = EmbeddingSettings::OpenRouter { api_key: "k".into(), model: "m".into(), dimensions: None, batch_size: 8 };
-        let ol = EmbeddingSettings::Ollama { host: "http://localhost".into(), model: "nomic".into(), batch_size: 4 };
+        let fast = EmbeddingSettings::FastEmbed {
+            model: "BGE".into(),
+            batch_size: 16,
+        };
+        let or = EmbeddingSettings::OpenRouter {
+            api_key: "k".into(),
+            model: "m".into(),
+            dimensions: None,
+            batch_size: 8,
+        };
+        let ol = EmbeddingSettings::Ollama {
+            host: "http://localhost".into(),
+            model: "nomic".into(),
+            batch_size: 4,
+        };
         let fast_json = serde_json::to_string(&fast).unwrap();
         let or_json = serde_json::to_string(&or).unwrap();
         let ol_json = serde_json::to_string(&ol).unwrap();

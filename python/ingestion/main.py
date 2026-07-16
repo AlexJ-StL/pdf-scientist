@@ -36,9 +36,9 @@ def sanitize_metadata(meta: dict[str, Any]) -> dict[str, Any]:
     for key, value in meta.items():
         if value is None:
             continue
-        elif isinstance(value, (list, dict)):
+        elif isinstance(value, list | dict):
             result[key] = json.dumps(value)
-        elif isinstance(value, (str, int, float, bool)):
+        elif isinstance(value, str | int | float | bool):
             result[key] = value
         else:
             result[key] = str(value)
@@ -144,6 +144,24 @@ class HealthResponse(BaseModel):
     chroma_connected: bool
     embedding_provider: str
     llm_provider: str
+
+
+class GraphExtractRequest(BaseModel):
+    collection: str = "epa_methods"
+
+
+class CitationEdge(BaseModel):
+    source_id: str
+    target_id: str
+    edge_type: str
+    confidence: float
+    context: str | None = None
+
+
+class GraphExtractResponse(BaseModel):
+    status: str
+    edges_extracted: int
+    edges: list[CitationEdge] = []
 
 
 # API Endpoints
@@ -319,6 +337,213 @@ async def query_knowledge_graph(request: QueryRequest):
         sources=sources,
         query_time_ms=elapsed_ms,
     )
+
+
+@app.post("/graph/extract", response_model=GraphExtractResponse)
+async def extract_graph_references(request: GraphExtractRequest):
+    """Extract citation references from all chunks in a collection."""
+    import re
+
+    if not chroma_manager:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    collection = request.collection or settings.chroma_collection
+
+    # Get all chunks from the collection
+    results = await chroma_manager.get_all(collection, include_embeddings=True)
+
+    if not results or not results.get("documents"):
+        return GraphExtractResponse(
+            status="completed",
+            edges_extracted=0,
+            edges=[],
+        )
+
+    documents = results["documents"][0] if results["documents"] else []
+    metadatas = results["metadatas"][0] if results["metadatas"] else []
+    ids = results["ids"][0] if results["ids"] else []
+    embeddings = (
+        results.get("embeddings", [None])[0]
+        if results.get("embeddings")
+        else [None] * len(documents)
+    )
+
+    if not documents:
+        return GraphExtractResponse(
+            status="completed",
+            edges_extracted=0,
+            edges=[],
+        )
+
+    # Regex patterns for reference extraction (matching Rust implementation)
+    method_pattern = re.compile(r"(?i)(?:EPA\s+)?(?:Method|SW-846)\s+(\d{4}[A-Z]?)\b")
+    section_pattern = re.compile(r"(?i)(?:Section|Sec\.|§)\s+(\d+(?:\.\d+)+)\b")
+    supersedes_pattern = re.compile(
+        r"(?i)(?:Method\s+)?(\d{4}[A-Z]?)\s+(?:supersedes?|replaces?)\s+(?:Method\s+)?(\d{4}[A-Z]?)"
+    )
+
+    edges = []
+    seen = set()
+
+    for doc_id, doc_text, metadata in zip(ids, documents, metadatas):
+        method_num = metadata.get("method_number", "UNKNOWN")
+
+        # Extract method references
+        for match in method_pattern.finditer(doc_text):
+            target_method = match.group(1).upper()
+            source_id = doc_id
+            target_id = f"METHOD_{target_method}"
+            edge_key = (source_id, target_id, "REFERENCES")
+
+            if edge_key not in seen:
+                seen.add(edge_key)
+                edges.append(
+                    CitationEdge(
+                        source_id=source_id,
+                        target_id=target_id,
+                        edge_type="REFERENCES",
+                        confidence=0.9,
+                        context=match.group(0),
+                    )
+                )
+
+        # Extract section references (need source method to construct target)
+        if method_num != "UNKNOWN":
+            for match in section_pattern.finditer(doc_text):
+                section = match.group(1)
+                target_id = f"METHOD_{method_num}_{section.replace('.', '_')}"
+                edge_key = (doc_id, target_id, "CITES_SECTION")
+
+                if edge_key not in seen:
+                    seen.add(edge_key)
+                    edges.append(
+                        CitationEdge(
+                            source_id=doc_id,
+                            target_id=target_id,
+                            edge_type="CITES_SECTION",
+                            confidence=0.85,
+                            context=match.group(0),
+                        )
+                    )
+
+        # Extract supersedes relationships
+        for match in supersedes_pattern.finditer(doc_text):
+            new_method = match.group(1).upper()
+            old_method = match.group(2).upper()
+            edge_key = (f"METHOD_{new_method}", f"METHOD_{old_method}", "SUPERSEDES")
+
+            if edge_key not in seen:
+                seen.add(edge_key)
+                edges.append(
+                    CitationEdge(
+                        source_id=f"METHOD_{new_method}",
+                        target_id=f"METHOD_{old_method}",
+                        edge_type="SUPERSEDES",
+                        confidence=0.95,
+                        context=match.group(0),
+                    )
+                )
+
+    logger.info(f"Extracted {len(edges)} citation edges from collection '{collection}'")
+
+    # Enrich chunk metadata with graph information
+    enriched_count = await _enrich_chunk_metadata(
+        chroma_manager=chroma_manager,
+        collection=collection,
+        edges=edges,
+        ids=ids,
+        metadatas=metadatas,
+        documents=documents,
+        embeddings=embeddings,
+    )
+
+    logger.info(f"Enriched metadata for {enriched_count} chunks")
+
+    return GraphExtractResponse(
+        status="completed",
+        edges_extracted=len(edges),
+        edges=edges,
+    )
+
+
+async def _enrich_chunk_metadata(
+    chroma_manager: ChromaManager,
+    collection: str,
+    edges: list[CitationEdge],
+    ids: list[str],
+    metadatas: list[dict[str, Any]],
+    documents: list[str],
+    embeddings: list[list[float] | None],
+) -> int:
+    """Enrich chunk metadata with graph cross-reference information.
+
+    Groups edges by source method and updates chunk metadata with:
+    - `references`: list of methods referenced by this chunk's method
+    - `supersedes`: list of methods this method supersedes
+    - `section_refs`: list of sections referenced by this chunk
+    """
+    from collections import defaultdict
+
+    # Group edges by method (extracted from chunk IDs)
+    method_edges = defaultdict(
+        lambda: {"references": set(), "supersedes": set(), "sections": set()}
+    )
+
+    for edge in edges:
+        # Extract method from source_id (format: METHOD_8270E_4_2_1 or METHOD_8270E)
+        source_parts = edge.source_id.split("_")
+        if len(source_parts) >= 2:
+            method_num = source_parts[1]
+            if method_num.isdigit() and len(method_num) == 4:
+                # It's a method ID
+                if edge.edge_type == "REFERENCES":
+                    target_parts = edge.target_id.split("_")
+                    if len(target_parts) >= 2:
+                        target_method = target_parts[1]
+                        method_edges[method_num]["references"].add(target_method)
+                elif edge.edge_type == "SUPERSEDES":
+                    target_parts = edge.target_id.split("_")
+                    if len(target_parts) >= 2:
+                        target_method = target_parts[1]
+                        method_edges[method_num]["supersedes"].add(target_method)
+                elif edge.edge_type == "CITES_SECTION":
+                    # Extract section from target_id
+                    section = edge.target_id.replace(f"METHOD_{method_num}_", "")
+                    method_edges[method_num]["sections"].add(section)
+
+    # Update chunk metadata
+    enriched_count = 0
+    for chunk_id, metadata, doc_text in zip(ids, metadatas, documents):
+        method_num = metadata.get("method_number", "")
+        if not method_num or method_num not in method_edges:
+            continue
+
+        edges_data = method_edges[method_num]
+        updated_metadata = dict(metadata)
+
+        if edges_data["references"]:
+            updated_metadata["references"] = sorted(edges_data["references"])
+        if edges_data["supersedes"]:
+            updated_metadata["supersedes"] = sorted(edges_data["supersedes"])
+        if edges_data["sections"]:
+            updated_metadata["section_refs"] = sorted(edges_data["sections"])
+
+        # Only update if metadata changed
+        if updated_metadata != metadata:
+            try:
+                embedding = embeddings[enriched_count] if enriched_count < len(embeddings) else None
+                await chroma_manager.upsert(
+                    collection_name=collection,
+                    documents=[doc_text],
+                    metadatas=[sanitize_metadata(updated_metadata)],
+                    ids=[chunk_id],
+                    embeddings=[embedding] if embedding else [],
+                )
+                enriched_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to enrich metadata for {chunk_id}: {e}")
+
+    return enriched_count
 
 
 async def process_pdf(

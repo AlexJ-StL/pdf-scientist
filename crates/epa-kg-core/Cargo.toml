@@ -18,8 +18,10 @@ clap = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
+reqwest = { workspace = true }
 
 # Additional
 schemars = "0.8"
 validator = { version = "0.17", features = ["derive"] }
 tempfile = "3.9"
+dotenvy = "0.15"

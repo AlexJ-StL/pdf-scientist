@@ -1,6 +1,0 @@
-PDF-Processor-MongoDB-JavaScript-CLI
-
-Install MongoDB Shell (mongosh 2.0.0)
-
-Connection String (with password):
-mongosh "mongodb+srv://pdf-processor.mayvl.mongodb.net/" --apiVersion 1 --username thanotosq --password tyKu5m5D3iCpAxpX

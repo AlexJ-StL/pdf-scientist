@@ -1,0 +1,27 @@
+{
+  "method": "0001",
+  "sample_text": "Method 0001 provides sample preparation guidance for aqueous samples. Refer to Section 3.1 for equipment and Section 4.1 for reagents. This method supports EPA Method 0002.",
+  "expected_edges": [
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0002",
+      "edge_type": "REFERENCES",
+      "confidence": 0.9,
+      "context": "EPA Method 0002"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0001_3_1",
+      "edge_type": "CITES_SECTION",
+      "confidence": 0.85,
+      "context": "Section 3.1"
+    },
+    {
+      "source_id": "METHOD_0001_chunk_1",
+      "target_id": "METHOD_0001_4_1",
+      "edge_type": "CITES_SECTION",
+      "confidence": 0.85,
+      "context": "Section 4.1"
+    }
+  ]
+}

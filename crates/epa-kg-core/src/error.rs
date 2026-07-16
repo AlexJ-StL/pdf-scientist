@@ -40,6 +40,9 @@ pub enum Error {
     #[error("URL parse error: {0}")]
     UrlParse(#[from] url::ParseError),
 
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+
     #[error("UUID error: {0}")]
     Uuid(#[from] uuid::Error),
 
@@ -48,6 +51,12 @@ pub enum Error {
 
     #[error("Internal error: {0}")]
     Internal(String),
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(err: anyhow::Error) -> Self {
+        Error::Internal(err.to_string())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

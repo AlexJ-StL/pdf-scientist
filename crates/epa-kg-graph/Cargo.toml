@@ -15,3 +15,8 @@ sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 petgraph = "0.6"
+rusqlite = { version = "0.31", features = ["bundled"] }
+regex = "1.10"
+
+[dev-dependencies]
+tempfile = "3.9"

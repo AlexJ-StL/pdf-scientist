@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -148,3 +149,79 @@ class TestQueryEndpoint:
         )
         assert req.embedding_provider == "ollama"
         assert req.collection == "custom"
+
+
+class TestGraphExtractEndpoint:
+    def test_returns_503_when_not_initialized(self, client):
+        with patch("ingestion.main.chroma_manager", None):
+            response = client.post("/graph/extract", json={})
+        assert response.status_code == 503
+        assert "not initialized" in response.json()["detail"]
+
+    def test_returns_empty_when_no_documents(self, client):
+        mock_chroma = AsyncMock()
+        mock_chroma.get_all.return_value = {"documents": [[]], "metadatas": [[]], "ids": [[]]}
+
+        with patch("ingestion.main.chroma_manager", mock_chroma):
+            response = client.post("/graph/extract", json={})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "completed"
+        assert body["edges_extracted"] == 0
+        assert body["edges"] == []
+
+    def test_extracts_references_and_sections(self, client):
+        mock_chroma = AsyncMock()
+        mock_chroma.get_all.return_value = {
+            "documents": [["Method 0002 is referenced here. See Section 3.1."]],
+            "metadatas": [[{"method_number": "0001"}]],
+            "ids": [["chunk_1"]],
+            "embeddings": [[[0.1] * 384]],
+        }
+
+        with patch("ingestion.main.chroma_manager", mock_chroma):
+            response = client.post("/graph/extract", json={})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["edges_extracted"] >= 1
+        target_ids = {edge["target_id"] for edge in body["edges"]}
+        assert "METHOD_0002" in target_ids
+
+
+class TestEnrichChunkMetadata:
+    @pytest.mark.asyncio
+    async def test_enriches_references_and_sections(self):
+        from ingestion.main import _enrich_chunk_metadata
+
+        mock_chroma = MagicMock()
+        mock_chroma.upsert = AsyncMock()
+
+        edges = [
+            MagicMock(
+                source_id="METHOD_0001_chunk_1", target_id="METHOD_0002", edge_type="REFERENCES"
+            ),
+            MagicMock(
+                source_id="METHOD_0001_chunk_1",
+                target_id="METHOD_0001_3_1",
+                edge_type="CITES_SECTION",
+            ),
+        ]
+
+        ids = ["chunk_1"]
+        metadatas = [{"method_number": "0001"}]
+        documents = ["sample text"]
+
+        count = await _enrich_chunk_metadata(
+            chroma_manager=mock_chroma,
+            collection="epa_methods",
+            edges=edges,
+            ids=ids,
+            metadatas=metadatas,
+            documents=documents,
+            embeddings=[[0.1] * 384],
+        )
+        assert count == 1
+        mock_chroma.upsert.assert_awaited_once()
+        call_kwargs = mock_chroma.upsert.call_args.kwargs
+        assert call_kwargs["collection_name"] == "epa_methods"
+        assert call_kwargs["ids"] == ["chunk_1"]

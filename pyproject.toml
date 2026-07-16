@@ -61,3 +61,6 @@ exclude = ['.venv', 'target', 'crates', '.archive']
 testpaths = ["python/ingestion/tests"]
 pythonpath = ["python"]
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (requires external services)",
+]

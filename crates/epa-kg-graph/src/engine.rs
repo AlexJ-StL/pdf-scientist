@@ -72,6 +72,13 @@ impl Default for GraphEngine {
     }
 }
 
+impl GraphEngine {
+    /// Get the number of nodes in the graph
+    pub fn node_count(&self) -> usize {
+        self.node_map.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

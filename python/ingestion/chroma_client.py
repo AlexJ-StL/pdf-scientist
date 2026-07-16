@@ -170,6 +170,34 @@ class ChromaManager:
 
         return collection.get(ids=ids)
 
+    async def get_all(
+        self,
+        collection_name: str,
+        limit: int | None = None,
+        include_embeddings: bool = False,
+    ) -> dict[str, Any] | None:
+        """Get all documents from a collection.
+
+        ChromaDB's get() with no ids returns all documents. We cap the
+        result to ``limit`` (default 10000) to avoid huge payloads.
+        """
+        if collection_name != self.collection_name:
+            try:
+                collection = self._client.get_collection(name=collection_name)
+            except Exception:
+                return None
+        else:
+            collection = self._collection
+
+        include_fields = ["documents", "metadatas"]
+        if include_embeddings:
+            include_fields.append("embeddings")
+
+        kwargs: dict[str, Any] = {"include": include_fields}
+        if limit is not None:
+            kwargs["limit"] = limit
+        return collection.get(**kwargs)
+
     async def delete(
         self,
         collection_name: str,

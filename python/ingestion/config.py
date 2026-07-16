@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 # Find project root (where .env lives)
@@ -73,13 +74,14 @@ class Settings(BaseSettings):
     # OpenRouter API Key (shared) - accepts both naming conventions
     openrouter_api_key: str | None = None
 
-    class Config:
-        env_file = PROJECT_ROOT / ".env"
-        env_file_encoding = "utf-8"
-        env_prefix = "EPA_KG__"
-        env_nested_delimiter = "__"
-        case_sensitive = False
-        extra = "allow"  # Allow extra fields from .env
+    model_config = ConfigDict(
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+        env_prefix="EPA_KG__",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+        extra="allow",
+    )
 
 
 settings = Settings()
