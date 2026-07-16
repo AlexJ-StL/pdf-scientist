@@ -83,5 +83,12 @@ class Settings(BaseSettings):
         extra="allow",
     )
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for field in self.model_fields:
+            value = getattr(self, field)
+            if isinstance(value, str) and value == "":
+                setattr(self, field, None)
+
 
 settings = Settings()

@@ -29,10 +29,10 @@ class TestSettings:
         assert Settings().toc_aware is True
 
     def test_default_embedding_provider(self):
-        assert Settings().embedding_provider == "openrouter"
+        assert Settings().embedding_provider == "fastembed"
 
     def test_default_llm_provider(self):
-        assert Settings().llm_provider == "openrouter"
+        assert Settings().llm_provider == "none"
 
     def test_default_max_file_size_mb(self):
         assert Settings().max_file_size_mb == 100
