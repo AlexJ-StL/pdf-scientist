@@ -13,14 +13,18 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/AlexJ-StL/epa-knowledge-graph"
-authors = ["Alex Johnson <alex@alexj-stl.com>"]
+authors = ["Alex Jensen <alex@alexj-stl.com>"]
 description = "EPA Knowledge Graph - Semantic search for environmental methods"
 
 [workspace.dependencies]
 # Core
 tokio = { version = "1.40", features = ["full", "tracing"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
 anyhow = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -39,7 +43,14 @@ hyper = { version = "1.2", features = ["full"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate", "json"] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "json",
+] }
 chromadb = "0.2"
 
 # PDF / Text
