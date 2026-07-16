@@ -682,8 +682,9 @@ def _build_upsert_payload(
 if __name__ == "__main__":
     import uvicorn
 
+    module = "ingestion.main:app" if __package__ else "main:app"
     uvicorn.run(
-        "main:app",
+        module,
         host=settings.host,
         port=settings.port,
         log_level=settings.log_level,

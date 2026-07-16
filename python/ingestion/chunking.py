@@ -225,14 +225,14 @@ class EPAMethodChunker:
         logger.info(f"Chunking {pdf_path.name}...")
 
         doc = fitz.open(str(pdf_path))
-        full_text, page_map = self._extract_text_and_page_map(doc)
-        doc.close()
-
-        toc = self.extract_toc(doc) if self.toc_aware else []
-        sections = self._build_sections(full_text, toc)
-        chunks = self.chunk_by_sections(full_text, sections, pdf_path.name, page_map)
-
-        return self._convert_chunks_to_dicts(chunks, pdf_path.name)
+        try:
+            full_text, page_map = self._extract_text_and_page_map(doc)
+            toc = self.extract_toc(doc) if self.toc_aware else []
+            sections = self._build_sections(full_text, toc)
+            chunks = self.chunk_by_sections(full_text, sections, pdf_path.name, page_map)
+            return self._convert_chunks_to_dicts(chunks, pdf_path.name)
+        finally:
+            doc.close()
 
     def _extract_text_and_page_map(self, doc: fitz.Document) -> tuple[str, dict[int, int]]:
         """Extract full text and character-position to page-number mapping."""

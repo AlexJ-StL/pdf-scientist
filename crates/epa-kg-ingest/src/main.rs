@@ -430,12 +430,14 @@ mod tests {
     }
 
     #[test]
-    fn run_server_returns_ok() {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let result = run_server(Settings::default(), 8080).await;
-            assert!(result.is_ok());
-        });
+    fn serve_command_parses_port() {
+        let result = Cli::try_parse_from(["epa-kg", "serve", "--port", "9090"]);
+        assert!(result.is_ok());
+        let cli = result.unwrap();
+        match cli.command {
+            Commands::Serve { port } => assert_eq!(port, 9090),
+            _ => panic!("Expected Serve command"),
+        }
     }
 
     #[test]

@@ -10,6 +10,7 @@ pub enum EdgeType {
     CitesSection,
     SharesAnalyte,
     SameMatrix,
+    CfrReference,
 }
 
 impl std::fmt::Display for EdgeType {
@@ -20,6 +21,7 @@ impl std::fmt::Display for EdgeType {
             EdgeType::CitesSection => write!(f, "CITES_SECTION"),
             EdgeType::SharesAnalyte => write!(f, "SHARES_ANALYTE"),
             EdgeType::SameMatrix => write!(f, "SAME_MATRIX"),
+            EdgeType::CfrReference => write!(f, "CFR_REFERENCE"),
         }
     }
 }
@@ -34,6 +36,7 @@ impl FromStr for EdgeType {
             "CITES_SECTION" => Ok(EdgeType::CitesSection),
             "SHARES_ANALYTE" => Ok(EdgeType::SharesAnalyte),
             "SAME_MATRIX" => Ok(EdgeType::SameMatrix),
+            "CFR_REFERENCE" => Ok(EdgeType::CfrReference),
             _ => Err(format!("Unknown edge type: {}", s)),
         }
     }

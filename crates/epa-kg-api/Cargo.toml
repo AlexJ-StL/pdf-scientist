@@ -16,6 +16,5 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 chromadb = { workspace = true }
-sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }

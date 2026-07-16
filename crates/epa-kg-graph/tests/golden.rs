@@ -30,6 +30,7 @@ impl From<GoldenEdge> for CitationEdge {
             "SUPERSEDES" => EdgeType::Supersedes,
             "SHARES_ANALYTE" => EdgeType::SharesAnalyte,
             "SAME_MATRIX" => EdgeType::SameMatrix,
+            "CFR_REFERENCE" => EdgeType::CfrReference,
             _ => EdgeType::References,
         };
 
@@ -51,26 +52,25 @@ fn load_golden_file(method: &str) -> GoldenFile {
         .join(format!("{}.json", method));
 
     let content = fs::read_to_string(&golden_path)
-        .expect(&format!("Golden file not found: {}", golden_path.display()));
+        .unwrap_or_else(|_| panic!("Golden file not found: {}", golden_path.display()));
     serde_json::from_str(&content).expect("Failed to parse golden file")
 }
 
-#[test]
-fn extractor_matches_golden_8270E() {
-    let golden = load_golden_file("8270E");
+fn assert_extractor_matches_golden(method: &str) {
+    let golden = load_golden_file(method);
     let extractor = ReferenceExtractor::new();
     let source_chunk_id = "chunk_1";
     let source_method = Some(golden.method.as_str());
 
     let edges = extractor.extract_references(source_chunk_id, &golden.sample_text, source_method);
 
-    // Convert expected edges to CitationEdge for comparison
     let expected: Vec<CitationEdge> = golden.expected_edges.into_iter().map(Into::into).collect();
 
     assert_eq!(
         edges.len(),
         expected.len(),
-        "Edge count mismatch.\nGot: {:?}\nExpected: {:?}",
+        "Edge count mismatch for method {}.\nGot: {:?}\nExpected: {:?}",
+        method,
         edges,
         expected
     );
@@ -102,49 +102,13 @@ fn extractor_matches_golden_8270E() {
 }
 
 #[test]
-fn extractor_matches_golden_3500C() {
-    let golden = load_golden_file("3500C");
-    let extractor = ReferenceExtractor::new();
-    let source_chunk_id = "chunk_1";
-    let source_method = Some(golden.method.as_str());
+fn extractor_matches_golden_8270e() {
+    assert_extractor_matches_golden("8270E");
+}
 
-    let edges = extractor.extract_references(source_chunk_id, &golden.sample_text, source_method);
-
-    // Convert expected edges to CitationEdge for comparison
-    let expected: Vec<CitationEdge> = golden.expected_edges.into_iter().map(Into::into).collect();
-
-    assert_eq!(
-        edges.len(),
-        expected.len(),
-        "Edge count mismatch.\nGot: {:?}\nExpected: {:?}",
-        edges,
-        expected
-    );
-
-    for (i, (got, want)) in edges.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(
-            got.source_id, want.source_id,
-            "Edge {} source_id mismatch",
-            i
-        );
-        assert_eq!(
-            got.target_id, want.target_id,
-            "Edge {} target_id mismatch",
-            i
-        );
-        assert_eq!(
-            got.edge_type, want.edge_type,
-            "Edge {} edge_type mismatch",
-            i
-        );
-        assert!(
-            (got.confidence - want.confidence).abs() < 0.01,
-            "Edge {} confidence mismatch: {} vs {}",
-            i,
-            got.confidence,
-            want.confidence
-        );
-    }
+#[test]
+fn extractor_matches_golden_3500c() {
+    assert_extractor_matches_golden("3500C");
 }
 
 #[test]
@@ -178,9 +142,9 @@ fn golden_files_are_valid_json() {
         let path = entry.path();
         if path.extension().map(|e| e == "json").unwrap_or(false) {
             let content = fs::read_to_string(&path)
-                .expect(&format!("Failed to read golden file: {}", path.display()));
+                .unwrap_or_else(|_| panic!("Failed to read golden file: {}", path.display()));
             let _: serde_json::Value = serde_json::from_str(&content)
-                .expect(&format!("Invalid JSON in golden file: {}", path.display()));
+                .unwrap_or_else(|_| panic!("Invalid JSON in golden file: {}", path.display()));
         }
     }
 }

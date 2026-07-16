@@ -6,7 +6,9 @@ use tracing_subscriber::{fmt, EnvFilter};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    fmt().with_env_filter(EnvFilter::from_default_env().add_directive("epa_kg_api=debug".parse()?)).init();
+    fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive("epa_kg_api=debug".parse()?))
+        .init();
 
     let state = AppState::new();
     let app = router(state);

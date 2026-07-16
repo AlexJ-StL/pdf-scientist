@@ -49,16 +49,13 @@ pub async fn query_handler(
     let client = Client::new();
     let url = format!("{}/query", PYTHON_SERVICE_URL);
 
-    let response = client
-        .post(url)
-        .json(&payload)
-        .send()
-        .await?;
+    let response = client.post(url).json(&payload).send().await?;
 
     if !response.status().is_success() {
-        return Err(ApiError(CoreError::Internal(
-            format!("Python query service returned {}", response.status()),
-        )));
+        return Err(ApiError(CoreError::Internal(format!(
+            "Python query service returned {}",
+            response.status()
+        ))));
     }
 
     let body: serde_json::Value = response.json().await?;
@@ -89,7 +86,10 @@ pub async fn query_handler(
     Ok(Json(QueryResponse {
         answer,
         sources,
-        query_time_ms: body.get("query_time_ms").and_then(|v| v.as_u64()).unwrap_or(0) as u64,
+        query_time_ms: body
+            .get("query_time_ms")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u64,
     }))
 }
 
@@ -132,16 +132,13 @@ pub async fn ingest_handler(
     let client = Client::new();
     let url = format!("{}/ingest", PYTHON_SERVICE_URL);
 
-    let response = client
-        .post(url)
-        .json(&payload)
-        .send()
-        .await?;
+    let response = client.post(url).json(&payload).send().await?;
 
     if !response.status().is_success() {
-        return Err(ApiError(CoreError::Internal(
-            format!("Python ingest service returned {}", response.status()),
-        )));
+        return Err(ApiError(CoreError::Internal(format!(
+            "Python ingest service returned {}",
+            response.status()
+        ))));
     }
 
     let body: serde_json::Value = response.json().await?;
@@ -159,10 +156,7 @@ pub async fn ingest_handler(
             .get("chunks_created")
             .and_then(|v| v.as_u64())
             .unwrap_or(0) as usize,
-        time_ms: body
-            .get("time_ms")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as u64,
+        time_ms: body.get("time_ms").and_then(|v| v.as_u64()).unwrap_or(0) as u64,
     }))
 }
 
@@ -191,8 +185,7 @@ mod tests {
             collection: "epa_methods".into(),
         };
         let result = query_handler(State(state.clone()), Json(request)).await;
-        // This will fail without the Python service running on port 8001
-        assert!(result.is_err());
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
