@@ -10,6 +10,7 @@ pub struct ReferenceExtractor {
     section_pattern: Regex,
     sw846_pattern: Regex,
     supersedes_pattern: Regex,
+    cfr_pattern: Regex,
 }
 
 impl ReferenceExtractor {
@@ -29,6 +30,9 @@ impl ReferenceExtractor {
             ).unwrap(),
             supersedes_pattern: Regex::new(
                 r"(?i)(?:Method\s+)?(\d{4}[A-Z]?)\s+(?:supersedes?|replaces?)\s+(?:Method\s+)?(\d{4}[A-Z]?)",
+            ).unwrap(),
+            cfr_pattern: Regex::new(
+                r"(?i)(\d+)\s+CFR\s+(?:§\s+)?(?:Part\s+)?(\d+(?:\.\d+)*)",
             ).unwrap(),
         }
     }
@@ -144,17 +148,47 @@ impl ReferenceExtractor {
                         context: cap.get(0).map(|m| m.as_str().to_string()),
                     };
 
-                    let edge_key =
-                        format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
-                    if seen.insert(edge_key) {
-                        edges.push(edge);
-                    }
-                }
-            }
-        }
+                     let edge_key =
+                         format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
+                     if seen.insert(edge_key) {
+                         edges.push(edge);
+                     }
+                 }
+             }
+         }
 
-        edges
-    }
+         // Extract CFR references
+         for cap in self.cfr_pattern.captures_iter(text) {
+             if let (Some(title), Some(section)) = (cap.get(1), cap.get(2)) {
+                 let cfr_title = title.as_str();
+                 let cfr_section = section.as_str();
+                 let target_id = format!("CFR_{}_{}", cfr_title, cfr_section.replace('.', "_"));
+                 let context = cap.get(0).map(|m| m.as_str().to_string());
+
+                 let source_id = if let Some(src_method) = source_method {
+                     format!("METHOD_{}_{}", src_method.to_uppercase(), source_chunk_id)
+                 } else {
+                     source_chunk_id.to_string()
+                 };
+
+                 let edge = CitationEdge {
+                     source_id,
+                     target_id,
+                     edge_type: EdgeType::CfrReference,
+                     confidence: 0.9,
+                     context,
+                 };
+
+                 let edge_key =
+                     format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
+                 if seen.insert(edge_key) {
+                     edges.push(edge);
+                 }
+             }
+         }
+
+         edges
+     }
 
     /// Create a citation edge with proper IDs
     fn create_edge(
@@ -303,7 +337,8 @@ mod tests {
         let text =
             "See 40 CFR 261.24 for toxicity characteristic and 40 CFR Part 264 for standards.";
         let edges = extractor.extract_references("chunk_1", text, Some("8270E"));
-        // CFR references don't create edges, but they are logged
-        assert!(edges.is_empty() || edges.iter().all(|e| e.edge_type == EdgeType::References));
+        assert!(edges.iter().any(|e| e.edge_type == EdgeType::CfrReference));
+        assert!(edges.iter().any(|e| e.target_id == "CFR_40_261_24"));
+        assert!(edges.iter().any(|e| e.target_id == "CFR_40_264"));
     }
 }
