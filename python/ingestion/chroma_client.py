@@ -108,9 +108,8 @@ class ChromaManager:
         ids: list[str],
         embeddings: list[list[float]],
     ):
-        """Upsert documents into collection."""
+        """Upsert documents into collection, batching to avoid ChromaDB limits."""
         if collection_name != self.collection_name:
-            # Get or create different collection
             try:
                 collection = self._client.get_collection(name=collection_name)
             except Exception:
@@ -121,13 +120,17 @@ class ChromaManager:
         else:
             collection = self._collection
 
-        collection.upsert(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids,
-            embeddings=embeddings,
-        )
-        logger.debug(f"Upserted {len(documents)} documents to {collection_name}")
+        batch_size = 1000
+        total = len(documents)
+        for start in range(0, total, batch_size):
+            end = min(start + batch_size, total)
+            collection.upsert(
+                documents=documents[start:end],
+                metadatas=metadatas[start:end],
+                ids=ids[start:end],
+                embeddings=embeddings[start:end],
+            )
+        logger.debug(f"Upserted {total} documents to {collection_name}")
 
     async def query(
         self,

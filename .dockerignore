@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Rust
+target/
+Cargo.lock
+
+# Node/Tauri
+node_modules/
+src-tauri/target/
+dist/
+*.tgz
+
+# Data
+data/
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+
+# Env
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Misc
+.archive/
+.docs/
+.kiro/
+*.egg-info/

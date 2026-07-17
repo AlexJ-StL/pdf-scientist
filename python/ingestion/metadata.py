@@ -260,6 +260,16 @@ If a field is not found, use empty string or empty list. Be precise."""
         await self._client.aclose()
 
 
+class HeuristicMetadataExtractor(MetadataExtractor):
+    """Regex-based metadata extraction without an LLM."""
+
+    async def extract_metadata(self, text: str, filename: str) -> dict[str, Any]:
+        return _build_fallback_metadata(text, filename)
+
+    async def close(self):
+        pass
+
+
 def get_metadata_extractor(settings) -> MetadataExtractor | None:
     """Factory function to get the configured metadata extractor."""
 
@@ -285,8 +295,8 @@ def get_metadata_extractor(settings) -> MetadataExtractor | None:
         )
 
     elif provider == "none":
-        logger.info("No LLM provider configured, metadata extraction disabled")
-        return None
+        logger.info("No LLM provider configured, using heuristic metadata extraction")
+        return HeuristicMetadataExtractor()
 
     else:
         logger.warning(f"Unknown LLM provider: {provider}")
