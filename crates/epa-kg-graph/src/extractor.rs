@@ -148,47 +148,46 @@ impl ReferenceExtractor {
                         context: cap.get(0).map(|m| m.as_str().to_string()),
                     };
 
-                     let edge_key =
-                         format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
-                     if seen.insert(edge_key) {
-                         edges.push(edge);
-                     }
-                 }
-             }
-         }
+                    let edge_key =
+                        format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
+                    if seen.insert(edge_key) {
+                        edges.push(edge);
+                    }
+                }
+            }
+        }
 
-         // Extract CFR references
-         for cap in self.cfr_pattern.captures_iter(text) {
-             if let (Some(title), Some(section)) = (cap.get(1), cap.get(2)) {
-                 let cfr_title = title.as_str();
-                 let cfr_section = section.as_str();
-                 let target_id = format!("CFR_{}_{}", cfr_title, cfr_section.replace('.', "_"));
-                 let context = cap.get(0).map(|m| m.as_str().to_string());
+        // Extract CFR references
+        for cap in self.cfr_pattern.captures_iter(text) {
+            if let (Some(title), Some(section)) = (cap.get(1), cap.get(2)) {
+                let cfr_title = title.as_str();
+                let cfr_section = section.as_str();
+                let target_id = format!("CFR_{}_{}", cfr_title, cfr_section.replace('.', "_"));
+                let context = cap.get(0).map(|m| m.as_str().to_string());
 
-                 let source_id = if let Some(src_method) = source_method {
-                     format!("METHOD_{}_{}", src_method.to_uppercase(), source_chunk_id)
-                 } else {
-                     source_chunk_id.to_string()
-                 };
+                let source_id = if let Some(src_method) = source_method {
+                    format!("METHOD_{}_{}", src_method.to_uppercase(), source_chunk_id)
+                } else {
+                    source_chunk_id.to_string()
+                };
 
-                 let edge = CitationEdge {
-                     source_id,
-                     target_id,
-                     edge_type: EdgeType::CfrReference,
-                     confidence: 0.9,
-                     context,
-                 };
+                let edge = CitationEdge {
+                    source_id,
+                    target_id,
+                    edge_type: EdgeType::CfrReference,
+                    confidence: 0.9,
+                    context,
+                };
 
-                 let edge_key =
-                     format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
-                 if seen.insert(edge_key) {
-                     edges.push(edge);
-                 }
-             }
-         }
+                let edge_key = format!("{}{}{}", edge.source_id, edge.target_id, edge.edge_type);
+                if seen.insert(edge_key) {
+                    edges.push(edge);
+                }
+            }
+        }
 
-         edges
-     }
+        edges
+    }
 
     /// Create a citation edge with proper IDs
     fn create_edge(

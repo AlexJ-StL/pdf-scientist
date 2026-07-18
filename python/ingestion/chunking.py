@@ -226,11 +226,18 @@ class EPAMethodChunker:
 
         doc = fitz.open(str(pdf_path))
         try:
+            first_page_text = doc[0].get_text() if len(doc) > 0 else ""
+            # Some PDFs have a blank first page; fall back to page 2 so
+            # title/metadata extraction still has the header text.
+            if not first_page_text.strip() and len(doc) > 1:
+                first_page_text = doc[1].get_text()
             full_text, page_map = self._extract_text_and_page_map(doc)
             toc = self.extract_toc(doc) if self.toc_aware else []
             sections = self._build_sections(full_text, toc)
             chunks = self.chunk_by_sections(full_text, sections, pdf_path.name, page_map)
-            return self._convert_chunks_to_dicts(chunks, pdf_path.name)
+            return self._convert_chunks_to_dicts(
+                chunks, pdf_path.name, first_page_text
+            )
         finally:
             doc.close()
 
@@ -286,7 +293,7 @@ class EPAMethodChunker:
         return sections
 
     def _convert_chunks_to_dicts(
-        self, chunks: list[Chunk], source_pdf: str
+        self, chunks: list[Chunk], source_pdf: str, first_page_text: str = ""
     ) -> list[dict[str, Any]]:
         """Convert Chunk dataclasses to ChromaDB-compatible dicts."""
         result = []
@@ -300,6 +307,7 @@ class EPAMethodChunker:
                     "metadata": chunk.metadata,
                     "page_start": chunk.page_start,
                     "page_end": chunk.page_end,
+                    "first_page_text": first_page_text,
                 }
             )
         logger.info(f"Created {len(result)} chunks from {source_pdf}")

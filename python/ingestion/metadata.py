@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 _METHOD_NUMBER_PATTERNS = [
     (r"(\d{4}[A-Z]?)", False),
-    (r"METHOD\s+(\d{4}[A-Z]?)", True),
+    (r"METHOD\s+(\d{3,4}(\.\d+)?[A-Z]?)", True),
 ]
 
 _REVISION_PATTERN = r"REVISION\s+([A-Z])(?![A-Z])"
@@ -63,11 +63,79 @@ def _extract_matrix_keywords(text: str) -> list[str]:
     return [kw for kw in _MATRIX_KEYWORDS if kw in lower_text]
 
 
-def _build_fallback_metadata(text: str, filename: str) -> dict[str, Any]:
+def _extract_method_title(header_text: str, filename: str) -> str:
+    """Extract the EPA method title from the document header / first page.
+
+    EPA method PDFs place a block like:
+        METHOD 0011
+        SAMPLING FOR SELECTED ALDEHYDE AND KETONE EMISSIONS
+        FROM STATIONARY SOURCES
+    on the first page. The method number is captured separately; here we
+    grab the lines following it as the title.
+    """
+    if not header_text:
+        return ""
+
+    # Normalize separators that can appear between a method number and its
+    # title (soft hyphen, em/en dash) so they don't break word boundaries.
+    for sep in ("\u00ad", "\u2014", "\u2013"):
+        header_text = header_text.replace(sep, " ")
+    lines = [ln.strip() for ln in header_text.splitlines()]
+
+    # Find the "METHOD XXXX" marker. Accept decimal methods like "200.8"
+    # and revision suffixes, and don't require it to start the line.
+    method_re = re.compile(r"METHOD\s+(\d{3,4}(\.\d+)?[A-Z]?)", re.IGNORECASE)
+    method_idx = -1
+    for i, ln in enumerate(lines):
+        if method_re.search(ln):
+            method_idx = i
+            break
+
+    if method_idx == -1:
+        # Fall back to filename-based title
+        m = re.match(r"(\d{3,4}(?:[._]\w+)*)", filename.upper())
+        return m.group(1) if m else ""
+
+    # The title may be on the same line as "METHOD XXXX" (e.g.
+    # "METHOD 25D DETERMINATION OF THE VOLATILE ORGANIC...") or on the
+    # following lines. Strip the "METHOD XXXX" prefix from that line.
+    first_line = lines[method_idx]
+    inline = first_line[method_re.search(first_line).end() :].strip()
+    inline = re.sub(r"^[\s\-–:]+", "", inline)
+    # Truncate the inline portion at the first section heading on the line
+    # (e.g. " 1.0 SCOPE ...") so we don't swallow the body text.
+    inline = re.split(r"\s+\d+\.\d+(\.\d+)*\b", inline)[0].strip()
+    title_parts: list[str] = [inline] if inline else []
+
+    # Collect non-empty lines after the METHOD marker until we hit a stop
+    # condition: a standalone/suffixed section number ("1.0", "1.0 SCOPE"),
+    # a CD-ROM / Revision footer, another "METHOD X" line, or the start of
+    # body prose (line begins lowercase or with boilerplate like "SW-846").
+    stop_re = re.compile(
+        r"^(\d+\.\d+(\.\d+)*\s?)|^CD-ROM|REVISION\s+\d|^METHOD\s+\d|^(sw-846|note:|this)",
+        re.IGNORECASE,
+    )
+    for ln in lines[method_idx + 1 :]:
+        if not ln:
+            if title_parts:
+                break
+            continue
+        if stop_re.match(ln):
+            break
+        title_parts.append(ln)
+
+    title = " ".join(title_parts).strip()
+    title = re.sub(r"\s+", " ", title)
+    return title
+
+
+def _build_fallback_metadata(
+    text: str, filename: str, header_text: str = ""
+) -> dict[str, Any]:
     """Build metadata dict from regex-based fallback extraction."""
     return {
         "method_number": _extract_method_number(text, filename),
-        "method_title": "",
+        "method_title": _extract_method_title(header_text, filename),
         "revision": _extract_revision(text),
         "revision_date": _extract_date(text),
         "supersedes": _extract_supersedes(text),
@@ -144,7 +212,9 @@ If a field is not found, use empty string or empty list. Be precise."""
             timeout=120.0,
         )
 
-    async def extract_metadata(self, text: str, filename: str) -> dict[str, Any]:
+    async def extract_metadata(
+        self, text: str, filename: str, first_page_text: str = ""
+    ) -> dict[str, Any]:
         # Truncate text to first 8000 chars for metadata extraction
         sample_text = text[:8000]
 
@@ -219,7 +289,9 @@ If a field is not found, use empty string or empty list. Be precise."""
         self.temperature = temperature
         self._client = httpx.AsyncClient(timeout=180.0)
 
-    async def extract_metadata(self, text: str, filename: str) -> dict[str, Any]:
+    async def extract_metadata(
+        self, text: str, filename: str, first_page_text: str = ""
+    ) -> dict[str, Any]:
         sample_text = text[:8000]
 
         payload = {
@@ -263,8 +335,10 @@ If a field is not found, use empty string or empty list. Be precise."""
 class HeuristicMetadataExtractor(MetadataExtractor):
     """Regex-based metadata extraction without an LLM."""
 
-    async def extract_metadata(self, text: str, filename: str) -> dict[str, Any]:
-        return _build_fallback_metadata(text, filename)
+    async def extract_metadata(
+        self, text: str, filename: str, first_page_text: str = ""
+    ) -> dict[str, Any]:
+        return _build_fallback_metadata(text, filename, header_text=first_page_text)
 
     async def close(self):
         pass

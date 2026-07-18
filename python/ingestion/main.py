@@ -106,6 +106,7 @@ class IngestRequest(BaseModel):
     chunk_size: int | None = None
     chunk_overlap: int | None = None
     toc_aware: bool | None = None
+    max_files: int | None = None
 
 
 class IngestResponse(BaseModel):
@@ -193,6 +194,8 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
     local_chunker = _get_chunker_for_request(request)
 
     pdf_files = _find_pdf_files(pdf_dir)
+    if request.max_files is not None and request.max_files >= 0:
+        pdf_files = pdf_files[: request.max_files]
     if not pdf_files:
         raise HTTPException(status_code=400, detail=f"No PDF files found in {pdf_dir}")
 
@@ -609,7 +612,10 @@ async def _extract_document_metadata(
 ) -> dict[str, Any]:
     """Extract document-level metadata from the first chunk."""
     if metadata_extractor and chunks:
-        return await metadata_extractor.extract_metadata(chunks[0]["text"], filename)
+        first_page_text = chunks[0].get("first_page_text", "")
+        return await metadata_extractor.extract_metadata(
+            chunks[0]["text"], filename, first_page_text=first_page_text
+        )
     return {}
 
 
@@ -688,5 +694,5 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         log_level=settings.log_level,
-        reload=True,
+        reload=settings.reload,
     )

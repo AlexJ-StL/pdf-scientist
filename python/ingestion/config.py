@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8001
     log_level: str = "info"
+    reload: bool = False
     data_dir: Path = Path("./data")
 
     # ChromaDB
