@@ -60,14 +60,16 @@
 
 | Module | Responsibility |
 |--------|----------------|
-| `main.py` | FastAPI app, lifespan, `/health`, `/ingest`, `/query` |
-| `chunking.py` | `EPAMethodChunker` — TOC-aware recursive splitter |
+| `main.py` | FastAPI app, lifespan, `/health`, `/ingest`, `/query` (reload disabled by default) |
+| `chunking.py` | `EPAMethodChunker` — TOC-aware recursive splitter; returns `first_page_text` for metadata |
 | `embeddings.py` | Provider abstraction: FastEmbed, OpenRouter, Ollama |
-| `metadata.py` | LLM-assisted metadata extraction (OpenRouter, Ollama) |
-| `chroma_client.py` | `ChromaManager` — embedded/remote/cloud client wrapper |
-| `config.py` | `Settings` via `pydantic-settings` (env + `.env`) |
+| `metadata.py` | LLM-assisted metadata extraction + regex fallback (extracts title from first page) |
+| `chroma_client.py` | `ChromaManager` — embedded/remote/cloud client wrapper; batch upsert (1000 chunks) |
+| `config.py` | `Settings` via `pydantic-settings` (env + `.env`); includes `reload`, `max_files` |
 
 **Communication:** Rust CLI → HTTP → Python service (port 8001)
+
+**Stability:** `EPA_KG__APP__RELOAD=false` (default) — prevents worker crash on file changes (WinError 10054)
 
 ### 3. ChromaDB (Vector Store)
 

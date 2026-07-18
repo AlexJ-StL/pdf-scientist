@@ -1,146 +1,157 @@
-# Contributing
+# Contributing to EPA Knowledge Graph
+
+Thank you for your interest in contributing! This project follows a standard open-source workflow with a few specific conventions.
 
 ## Development Setup
 
 ### Prerequisites
+- **Rust 1.80+** (via `rustup`)
+- **Python 3.12+** (with `uv` for dependency management)
+- **Node.js 20+** (for Tauri frontend - planned)
+- **PostgreSQL 16+** (local or Docker)
+- **Ollama** (optional, for local LLM metadata extraction)
 
-- **Rust** 1.80+ ([rustup](https://rustup.rs/))
-- **Python** 3.12+ (project minimum; tested on 3.12.6)
-- **uv** (Python package manager)
-- **Node.js** 18+ (for Tauri frontend, Phase 3+)
-
-### Clone and Install
-
+### Quick Start
 ```bash
+# 1. Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+
+# 2. Install uv (Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 3. Clone and enter
 git clone https://github.com/AlexJ-StL/epa-knowledge-graph
 cd epa-knowledge-graph
 
-# Install Rust dependencies
-cargo fetch
-
-# Install Python dependencies
-cd python/ingestion
-uv pip install -e ".[dev,test]"
-cd ../..
-```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
+# 4. Set up environment
 cp .env.example .env
+# Edit .env with your configuration
+
+# 5. Install Python deps
+cd python/ingestion && uv sync
+
+# 6. Build Rust workspace
+cargo build --workspace
+
+# 7. Run tests
+cargo test --workspace
+cd python/ingestion && uv run pytest
 ```
 
-Required variables:
-- `OPENROUTER_API_KEY` — for metadata extraction (optional)
-- `OLLAMA_HOST` — local LLM endpoint (default: `http://localhost:11434`)
-
-## Running Tests
-
-### Python
-
-```bash
-# Run all Python tests with coverage
-make test-python
-
-# Or directly with Python 3.12
-\\\"C:\\Users\\AlexJ\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\\\" -m pytest python/ingestion/tests/ --cov=python/ingestion -v
-```
+## Code Style
 
 ### Rust
-
-```bash
-# Run all Rust tests
-make test-rust
-
-# Run clippy lints
-make test-rust-clippy
-
-# Or directly
-cargo test --workspace --verbose
-cargo clippy --workspace -- -D warnings
-```
-
-### All Tests
-
-```bash
-make test
-```
-
-## Code Quality
+- **Format:** `cargo fmt --all` (rustfmt, edition 2021)
+- **Lint:** `cargo clippy --workspace -- -D warnings`
+- **Audit:** `cargo audit` (security vulnerabilities)
+- **Error handling:** `thiserror` for error types, `anyhow` for application errors
+- **Logging:** `tracing`
 
 ### Python
-- **Formatter:** `ruff format .`
-- **Linter:** `ruff check .`
-- **Type checking:** `mypy python/ingestion/`
+- **Format + Lint:** `ruff format .` + `ruff check . --fix` (replaces black/isort/flake8)
+- **Type check:** `mypy --strict` (where applicable)
+- **Validation:** `pydantic` v2 for settings/validation
+- **Async throughout**
 
-### Rust
-- **Formatter:** `cargo fmt --all -- --check`
-- **Linter:** `cargo clippy --workspace -- -D warnings`
-- **Tests:** `cargo test --workspace`
+### TypeScript/React (UI - planned)
+- **Format:** `prettier --write .`
+- **Lint:** `eslint . --ext ts,tsx`
+- **Type check:** `tsc --noEmit`
 
-## CI/CD
+### Pre-commit Hook
+```bash
+# Install once
+cargo install cargo-husky
+cargo husky install
 
-GitHub Actions runs on every push and pull request:
-
-1. **Python tests** with coverage reporting
-2. **Rust tests** across all crates
-3. **Rust clippy** with strict warnings-as-errors
-4. **Coverage upload** to Codecov (optional, requires `CODECOV_TOKEN`)
+# Runs on every commit:
+# - cargo fmt --check
+# - cargo clippy
+# - ruff check
+# - prettier --check (when UI exists)
+```
 
 ## Commit Convention
 
-We use [Conventional Commits](https://www.conventionalcommits.org/):
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
-feat: add graph traversal for citation chains
-fix: handle missing TOC in PDF parsing
-test: add unit tests for metadata fallback
-docs: update README with Phase 2 roadmap
-refactor: extract chunk_pdf into smaller functions
+<type>(<scope>): <short description>
+
+[body]
+
+[footer]
 ```
 
-DCO sign-off is required for all commits:
+**Types:**
+- `feat` — New feature
+- `fix` — Bug fix
+- `docs` — Documentation only
+- `style` — Formatting, no logic change
+- `refactor` — Code restructure, no behavior change
+- `perf` — Performance improvement
+- `test` — Add or modify tests
+- `chore` — Build, deps, tooling
+- `ci` — CI/CD changes
 
+**Scopes:** `core`, `ingest`, `api`, `graph`, `tauri`, `ui`, `python`, `docs`, `deps`
+
+**Examples:**
+```
+feat(ingest): add TOC-aware PDF chunking strategy
+fix(api): handle empty query results gracefully
+docs(readme): update quickstart for Python service
+test(graph): add golden-file tests for cross-ref extraction
+refactor(core): extract Settings into separate module
+```
+
+**DCO Sign-off required:**
 ```bash
-git commit -s -m "feat: add graph traversal for citation chains"
+git commit -s -m "feat(ingest): add TOC-aware PDF chunking"
 ```
 
-## Project Structure
+## Pull Request Process
 
-```
-epa-knowledge-graph/
-├── Cargo.toml                     # Rust workspace root
-├── crates/
-│   ├── epa-kg-core/               # Shared types, config, errors
-│   ├── epa-kg-ingest/            # CLI binary + Python bridge
-│   ├── epa-kg-api/                # Axum HTTP API
-│   ├── epa-kg-graph/              # Citation graph engine
-│   └── epa-kg-tauri/              # Tauri v2 entry point
-├── python/
-│   └── ingestion/                 # FastAPI ingestion service
-│       ├── main.py
-│       ├── chunking.py
-│       ├── embeddings.py
-│       ├── metadata.py
-│       ├── chroma_client.py
-│       ├── config.py
-│       ├── pyproject.toml
-│       └── tests/
-│           ├── unit/
-│           ├── integration/
-│           └── test_ingestion.py
-├── .github/workflows/ci.yml       # CI/CD pipeline
-└── Makefile                       # Dev shortcuts
-```
+1. **Fork** the repository
+2. **Create a branch** from `main`: `git checkout -b feat/my-feature`
+3. **Make changes** with clear, atomic commits
+4. **Run all checks locally:**
+   ```bash
+   cargo fmt --check && cargo clippy --workspace -D warnings
+   cd python/ingestion && uv run ruff check . && uv run pytest
+   ```
+5. **Open PR** against `main` with:
+   - Clear title (Conventional Commit format)
+   - Description of changes and motivation
+   - Link to any related issue
+6. **DCO Sign-off** required on all commits
+7. **CI must pass** (GitHub Actions: test, lint, audit, build)
+8. **Review** — maintainers will review; address feedback
+9. **Merge** — squash and merge (maintainers only)
 
-## Test Strategy
+## Issue Reporting
 
-- **Python:** Target >95% coverage. Unit tests in `tests/unit/`, integration tests in `tests/integration/`
-- **Rust:** Target >90% coverage for core crates (`epa-kg-core`, `epa-kg-graph`, `epa-kg-api`). CLI integration code is excluded from coverage gates.
-- **Tests must pass** before merging. CI enforces this automatically.
+- **Bug reports:** Use the bug template; include reproduction steps, environment, logs
+- **Feature requests:** Use the feature template; explain use case and acceptance criteria
+- **Security issues:** Email privately (see SECURITY.md) — do not file public issues
 
-## Questions?
+## Code of Conduct
 
-Open an issue at https://github.com/AlexJ-StL/epa-knowledge-graph/issues.
+This project follows the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/). By participating, you agree to uphold this code.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License (see LICENSE).
+
+**Commercial module (`epa-audit-suite`)** is proprietary. Contact for licensing.
+
+---
+
+## Additional Resources
+
+- [Development Guide](docs/development.md) — Detailed setup, testing, debugging
+- [Architecture](docs/architecture.md) — System design, components, data flow
+- [API Reference](docs/api.md) — REST endpoints, CLI commands, Tauri commands
+- [Ingestion Guide](docs/ingestion-guide.md) — PDF processing, chunking, embeddings, metadata
+- [Phase 1 Plan](docs/phase-1-ingestion.md) — Current phase deliverables and acceptance criteria

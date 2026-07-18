@@ -42,6 +42,10 @@ EPA_KG__INGESTION__CHUNK_OVERLAP=64
 EPA_KG__INGESTION__TOC_AWARE=true
 EPA_KG__INGESTION__EXTRACT_TABLES=true
 EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
+EPA_KG__INGESTION__MAX_FILES=0           # 0 = all files, or limit for testing
+
+# Service behavior
+EPA_KG__APP__RELOAD=false                 # Disable auto-reload for stability
 
 # Embeddings (choose one)
 EPA_KG__EMBEDDING__PROVIDER=fastembed        # Local, default
@@ -133,14 +137,18 @@ Uses configured LLM provider to extract structured metadata from first ~8000 cha
 - OpenRouter: `anthropic/claude-3.5-sonnet` (best quality)
 - Ollama: `llama3.2:3b` (local, no API key)
 
-### Regex Fallback (No LLM)
+### Regex Fallback (No LLM / `EPA_KG__LLM__PROVIDER=none`)
 
-Extracts from filename + text patterns:
-- Method number: `(\d{4}[A-Z]?)` from filename or "METHOD XXXX"
-- Revision: `REVISION ([A-Z])`
-- Date: `(\d{4}[-/]\d{2}[-/]\d{2})`
-- Supersedes: `SUPERSEDES (METHOD )?(\d{4}[A-Z]?)`
-- Matrix: Keyword search (water, soil, waste, air, tissue, sludge)
+Extracts from filename + first-page header text (NOT body chunks):
+
+- **Method number**: `(\d{3,4}(\.\d+)?[A-Z]?)` from filename or "METHOD XXXX" on first page
+- **Method title**: Title block following "METHOD XXXX" on first page (handles inline titles like "METHOD 25D—DETERMINATION OF...")
+- **Revision**: `REVISION ([A-Z])`
+- **Date**: `(\d{4}[-/]\d{2}[-/]\d{2})`
+- **Supersedes**: `SUPERSEDES (METHOD )?(\d{3,4}(\.\d+)?[A-Z]?)`
+- **Matrix**: Keyword search (water, soil, waste, air, tissue, sludge)
+
+> **Note:** The regex fallback now reads the PDF's first page directly to extract the canonical method title and number, avoiding the bug where body-chunk text contained *referenced* method numbers instead of the document's own number.
 
 ---
 
@@ -168,6 +176,7 @@ EPA_KG__EMBEDDING__OLLAMA__MODEL=nomic-embed-text
 | Collection | Purpose | Created By |
 |------------|---------|------------|
 | `epa_methods` | EPA method chunks (default) | CLI ingest |
+| `epa_methods_test50` | Test collection (50 PDFs) | Dev testing |
 | `tenant_{id}_sops` | Lab SOPs/QAPs (Phase 4) | Multi-tenant API |
 | `tenant_{id}_qaps` | Lab QAPs (Phase 4) | Multi-tenant API |
 
@@ -193,6 +202,13 @@ ChromaDB `get()` checks existing IDs before embedding.
 ```bash
 # Re-processes all files, overwrites chunks
 epa-kg ingest --pdf-dir ./epa-methods --force-reindex
+```
+
+### Fast Iteration (Testing)
+
+```bash
+# Process only first 50 PDFs for quick testing
+epa-kg ingest --pdf-dir ./epa-methods --max-files 50
 ```
 
 ### Change Detection
@@ -234,6 +250,11 @@ echo $OPENROUTER_API_KEY
 - Check LLM provider config
 - Check logs: `RUST_LOG=debug cargo run ...`
 
+### "Query endpoint crashes (WinError 10054)"
+- Caused by `reload=True` in FastAPI dev mode
+- **Fixed:** Set `EPA_KG__APP__RELOAD=false` in `.env` (now default)
+- Auto-reload kills in-flight query workers on any file change
+
 ### Large PDFs timeout
 ```bash
 # Increase timeout in .env or chunk smaller
@@ -251,6 +272,8 @@ EPA_KG__INGESTION__CHUNK_SIZE=256
 | `chunk_overlap` | 64 | 10-20% of chunk_size |
 | `batch_size` (embeddings) | 32 | 64-128 for GPU, 16-32 for CPU |
 | `toc_aware` | true | Keep true for EPA methods |
+| `max_files` | 0 (all) | 50 for dev iteration |
+| `reload` | false | Disable for production |
 
 ### Benchmarks (Approximate)
 
@@ -297,13 +320,15 @@ class CustomChunker(EPAMethodChunker):
 
 ## Phase 1 Checklist
 
-- [ ] PDF directory configured
-- [ ] Python service starts (`/health` returns OK)
-- [ ] CLI ingest completes without errors
-- [ ] ChromaDB has documents (`epa-kg query "test"` returns results)
-- [ ] Citations include method/section/chunk
-- [ ] Re-ingest is idempotent (no duplicate chunks)
-- [ ] Unit tests pass (`cargo test` + `pytest`)
+- [x] PDF directory configured
+- [x] Python service starts (`/health` returns OK)
+- [x] CLI ingest completes without errors
+- [x] ChromaDB has documents (`epa-kg query "test"` returns results)
+- [x] Citations include method/section/chunk
+- [x] Re-ingest is idempotent (no duplicate chunks)
+- [x] Unit tests pass (`cargo test` + `pytest`)
+- [x] Metadata extraction: method_number + method_title from first page
+- [x] Query endpoint stable (reload disabled)
 
 ---
 

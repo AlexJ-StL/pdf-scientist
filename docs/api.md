@@ -25,7 +25,7 @@ GET /health
   "status": "ok",
   "chroma_connected": true,
   "embedding_provider": "fastembed",
-  "llm_provider": "ollama"
+  "llm_provider": "none"
 }
 ```
 
@@ -46,7 +46,8 @@ Content-Type: application/json
   "force_reindex": false,
   "chunk_size": 512,
   "chunk_overlap": 64,
-  "toc_aware": true
+  "toc_aware": true,
+  "max_files": 50
 }
 ```
 
@@ -58,6 +59,7 @@ Content-Type: application/json
 | `chunk_size` | integer | No | Config value | Target tokens per chunk |
 | `chunk_overlap` | integer | No | Config value | Token overlap between chunks |
 | `toc_aware` | boolean | No | Config value | Use TOC-aware chunking |
+| `max_files` | integer | No | `0` (all) | Limit number of PDFs to process (0 = all) |
 
 **Response (200 OK):**
 ```json
@@ -150,6 +152,7 @@ epa-kg ingest \
   --pdf-dir ./epa-methods \
   --collection epa_methods \
   --force-reindex \
+  --max-files 50 \
   --config .env.production
 ```
 
@@ -223,6 +226,8 @@ The Python service reads from the same `.env` as Rust (via `pydantic-settings`):
 EPA_KG__APP__HOST=127.0.0.1
 EPA_KG__APP__PORT=8001
 EPA_KG__APP__LOG_LEVEL=info
+EPA_KG__APP__RELOAD=false
+EPA_KG__APP__DATA_DIR=./data
 
 # ChromaDB
 EPA_KG__CHROMA__HOST=127.0.0.1
@@ -235,6 +240,9 @@ EPA_KG__INGESTION__PDF_DIR=./epa-methods
 EPA_KG__INGESTION__CHUNK_SIZE=512
 EPA_KG__INGESTION__CHUNK_OVERLAP=64
 EPA_KG__INGESTION__TOC_AWARE=true
+EPA_KG__INGESTION__EXTRACT_TABLES=true
+EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
+EPA_KG__INGESTION__MAX_FILES=0
 
 # Embeddings
 EPA_KG__EMBEDDING__PROVIDER=fastembed  # or openrouter, ollama
@@ -246,7 +254,7 @@ EPA_KG__EMBEDDING__OLLAMA__HOST=http://localhost:11434
 EPA_KG__EMBEDDING__OLLAMA__MODEL=nomic-embed-text
 
 # LLM (Metadata)
-EPA_KG__LLM__PROVIDER=ollama  # or openrouter, none
+EPA_KG__LLM__PROVIDER=none  # or openrouter, ollama
 EPA_KG__LLM__OPENROUTER__API_KEY=sk-or-...
 EPA_KG__LLM__OPENROUTER__MODEL=anthropic/claude-3.5-sonnet
 EPA_KG__LLM__OLLAMA__HOST=http://localhost:11434

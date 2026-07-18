@@ -7,19 +7,24 @@ Phase 1 builds the foundational ingestion pipeline: **EPA Method PDFs → Struct
 **Timeline:** Weeks 1-3
 **Goal:** Working `epa-kg ingest` and `epa-kg query` commands with ≥80% test coverage.
 
+**Status:** ✅ **Phase 1 Complete** (core pipeline functional, query endpoint stable)
+
 ---
 
 ## Deliverables
 
-| # | Deliverable | Done Criteria |
-|---|-------------|---------------|
-| 1 | `epa-kg ingest` CLI command | `cargo run --bin epa-kg -- ingest --pdf-dir ./epa-methods` processes all PDFs |
-| 2 | PDF → structured chunks | TOC-aware chunking preserves section hierarchy; tables extracted |
-| 3 | Embedding generation | FastEmbed (default) + OpenRouter + Ollama providers working |
-| 4 | ChromaDB persistence | Embedded mode survives restart; data in `./data/chroma/` |
-| 5 | `epa-kg query` CLI command | Natural language query returns top-K chunks with citations |
-| 6 | Unit test suite | `cargo test --workspace` + `pytest python/ingestion/tests/` ≥ 80% coverage |
-| 7 | Dockerfile | Single image runs API + CLI |
+| # | Deliverable | Status | Done Criteria |
+|---|-------------|--------|---------------|
+| 1 | `epa-kg ingest` CLI command | ✅ Done | `cargo run --bin epa-kg -- ingest --pdf-dir ./epa-methods` processes all PDFs |
+| 2 | PDF → structured chunks | ✅ Done | TOC-aware chunking preserves section hierarchy; tables extracted |
+| 3 | Embedding generation | ✅ Done | FastEmbed (default) + OpenRouter + Ollama providers working |
+| 4 | ChromaDB persistence | ✅ Done | Embedded mode survives restart; data in `./data/chroma/` |
+| 5 | `epa-kg query` CLI command | ✅ Done | Natural language query returns top-K chunks with citations |
+| 6 | Unit test suite | ✅ Done | `cargo test --workspace` + `pytest python/ingestion/tests/` ≥ 80% coverage |
+| 7 | Dockerfile | ✅ Done | Single image runs API + CLI |
+| 8 | Query endpoint stability | ✅ Done | `reload=False` prevents worker crash on file changes (WinError 10054 fixed) |
+| 9 | Fast iteration mode | ✅ Done | `max_files` parameter limits PDFs for dev testing (e.g., 50 → ~18 min) |
+| 10 | Metadata extraction | ✅ Done | `method_number` + `method_title` extracted from first page, not body chunks |
 
 ---
 
@@ -116,6 +121,10 @@ EPA_KG__INGESTION__CHUNK_SIZE=512
 EPA_KG__INGESTION__CHUNK_OVERLAP=64
 EPA_KG__INGESTION__TOC_AWARE=true
 EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
+EPA_KG__INGESTION__MAX_FILES=0           # 0 = all files, or limit for testing (e.g., 50)
+
+# Service behavior
+EPA_KG__APP__RELOAD=false                 # Disable auto-reload for stability
 
 # Embeddings (choose one)
 EPA_KG__EMBEDDING__PROVIDER=fastembed
@@ -297,7 +306,7 @@ cargo build --release --workspace
 # 5. Start Python ingestion service
 cd python/ingestion
 uv sync
-uv run uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+uv run uvicorn main:app --host 0.0.0.0 --port 8001
 
 # 6. Ingest EPA methods
 cd ../..
@@ -311,11 +320,14 @@ cd ../..
 
 ## Acceptance Criteria (Phase 1 Complete)
 
-- [ ] `epa-kg ingest` processes 50+ EPA method PDFs without errors
-- [ ] `epa-kg query` returns relevant results with method/section citations
-- [ ] Embedded ChromaDB persists across restarts
-- [ ] All embedding providers work (FastEmbed default, OpenRouter, Ollama)
-- [ ] Metadata extraction works with Ollama (local) and OpenRouter (cloud)
-- [ ] Unit tests pass: `cargo test --workspace` + `pytest python/ingestion/tests/`
-- [ ] Docker image builds and runs: `docker compose up`
-- [ ] Code coverage ≥ 80% on ingestion logic
+- [x] `epa-kg ingest` processes 50+ EPA method PDFs without errors
+- [x] `epa-kg query` returns relevant results with method/section citations
+- [x] Embedded ChromaDB persists across restarts
+- [x] All embedding providers work (FastEmbed default, OpenRouter, Ollama)
+- [x] Metadata extraction works with Ollama (local) and OpenRouter (cloud)
+- [x] Unit tests pass: `cargo test --workspace` + `pytest python/ingestion/tests/`
+- [x] Docker image builds and runs: `docker compose up`
+- [x] Code coverage ≥ 80% on ingestion logic
+- [x] Query endpoint stable (auto-reload disabled)
+- [x] Metadata extraction: method_number + method_title from first page
+- [x] Fast iteration: `max_files` parameter for dev testing
