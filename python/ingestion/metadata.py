@@ -134,7 +134,7 @@ def _build_fallback_metadata(
 ) -> dict[str, Any]:
     """Build metadata dict from regex-based fallback extraction."""
     return {
-        "method_number": _extract_method_number(text, filename),
+        "method_number": _extract_method_number(header_text, filename),
         "method_title": _extract_method_title(header_text, filename),
         "revision": _extract_revision(text),
         "revision_date": _extract_date(text),
