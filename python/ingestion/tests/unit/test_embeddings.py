@@ -87,9 +87,9 @@ class TestGetEmbeddingProvider:
     def test_fastembed_factory(self, monkeypatch):
         from ingestion.config import Settings
 
-        monkeypatch.setenv("EPA_KG__EMBEDDING_PROVIDER", "fastembed")
-        monkeypatch.setenv("EPA_KG__FASTEMBED_MODEL", "BAAI/bge-small-en-v1.5")
-        monkeypatch.setenv("EPA_KG__FASTEMBED_BATCH_SIZE", "32")
+        monkeypatch.setenv("EPA_KG__EMBEDDING__PROVIDER", "fastembed")
+        monkeypatch.setenv("EPA_KG__EMBEDDING__FASTEMBED_MODEL", "BAAI/bge-small-en-v1.5")
+        monkeypatch.setenv("EPA_KG__EMBEDDING__FASTEMBED_BATCH_SIZE", "32")
 
         settings = Settings()
         provider = get_embedding_provider(settings)
@@ -99,7 +99,7 @@ class TestGetEmbeddingProvider:
         from unittest.mock import MagicMock
 
         settings = MagicMock()
-        settings.embedding_provider = "unknown"
+        settings.embedding.provider = "unknown"
 
         with pytest.raises(ValueError):
             get_embedding_provider(settings)

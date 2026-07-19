@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, model_validator
 from pydantic_settings import BaseSettings
 
 # Find project root (where .env lives)
@@ -17,7 +17,11 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class _Base(BaseSettings):
-    """Base settings that bind nested env vars: EPA_KG__<GROUP>__<FIELD>."""
+    """Base settings that bind nested env vars: EPA_KG__<GROUP>__<FIELD>.
+
+    Empty strings coming from the environment are normalized to None so a
+    blank value never overrides a real default.
+    """
 
     model_config = ConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -28,12 +32,13 @@ class _Base(BaseSettings):
         extra="allow",
     )
 
-    def _coerce(self):
-        # Treat empty strings as None so "" never overrides a real default.
+    @model_validator(mode="after")
+    def _coerce_empty_strings(self):
         for field in self.model_fields:
             value = getattr(self, field)
             if isinstance(value, str) and value == "":
                 setattr(self, field, None)
+        return self
 
 
 class AppSettings(_Base):
@@ -125,9 +130,6 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._coerce()
-        for sub in (self.app, self.chroma, self.ingestion, self.embedding, self.llm, self.reranker):
-            sub._coerce()
 
         # Canonical secrets from the bare process environment (never from .env).
         # Each provider sub-model falls back to this shared key when its own

@@ -137,9 +137,9 @@ class TestGetMetadataExtractor:
     def test_openrouter_factory(self, monkeypatch):
         from ingestion.config import Settings
 
-        monkeypatch.setenv("EPA_KG__LLM_PROVIDER", "openrouter")
+        monkeypatch.setenv("EPA_KG__LLM__PROVIDER", "openrouter")
         monkeypatch.setenv("EPA_KG__OPENROUTER_API_KEY", "secret")
-        monkeypatch.setenv("EPA_KG__OPENROUTER_LLM_MODEL", "claude-3.5-sonnet")
+        monkeypatch.setenv("EPA_KG__LLM__OPENROUTER__MODEL", "claude-3.5-sonnet")
 
         settings = Settings()
         extractor = get_metadata_extractor(settings)
@@ -148,7 +148,7 @@ class TestGetMetadataExtractor:
     def test_ollama_factory(self, monkeypatch):
         from ingestion.config import Settings
 
-        monkeypatch.setenv("EPA_KG__LLM_PROVIDER", "ollama")
+        monkeypatch.setenv("EPA_KG__LLM__PROVIDER", "ollama")
         settings = Settings()
 
         extractor = get_metadata_extractor(settings)
@@ -157,7 +157,7 @@ class TestGetMetadataExtractor:
     def test_none_returns_heuristic(self, monkeypatch):
         from ingestion.config import Settings
 
-        monkeypatch.setenv("EPA_KG__LLM_PROVIDER", "none")
+        monkeypatch.setenv("EPA_KG__LLM__PROVIDER", "none")
         settings = Settings()
 
         extractor = get_metadata_extractor(settings)
@@ -167,7 +167,7 @@ class TestGetMetadataExtractor:
         from unittest.mock import MagicMock
 
         settings = MagicMock()
-        settings.llm_provider = "unknown"
+        settings.llm.provider = "unknown"
 
         extractor = get_metadata_extractor(settings)
         assert extractor is None
@@ -184,7 +184,7 @@ class TestGetMetadataExtractor:
             monkeypatch.delenv(key, raising=False)
 
         settings = Settings(_env_file=None)
-        settings.llm_provider = "openrouter"
+        settings.llm.provider = "openrouter"
 
         extractor = get_metadata_extractor(settings)
         assert extractor is None

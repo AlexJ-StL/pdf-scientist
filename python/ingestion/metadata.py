@@ -22,8 +22,23 @@ _SUPERSEDES_PATTERN = r"SUPERSEDES\s+(METHOD\s+)?(\d{4}[A-Z]?)"
 _MATRIX_KEYWORDS = ["water", "soil", "sediment", "waste", "air", "tissue", "sludge"]
 
 
+_REGULATION_HINTS = ("40 CFR", "CFR PART", "FEDERAL REGISTER", "SUBCHAPTER", "ENVIRONMENTAL PROTECTION AGENCY")
+
+
+def _is_regulation(filename: str, text: str) -> bool:
+    """Detect 40 CFR / Federal Register regulatory docs (not EPA methods)."""
+    upper = (filename + " " + text[:500]).upper()
+    return any(hint in upper for hint in _REGULATION_HINTS)
+
+
 def _extract_method_number(text: str, filename: str) -> str:
-    """Extract EPA method number from filename or body text."""
+    """Extract EPA method number from filename or body text.
+
+    Regulatory documents (40 CFR, Federal Register) have no EPA method number;
+    we return "" for those so the filename never pollutes the method_number field.
+    """
+    if _is_regulation(filename, text):
+        return ""
     upper_filename = filename.upper()
     for pattern, _ in _METHOD_NUMBER_PATTERNS:
         match = re.search(pattern, upper_filename)
@@ -72,8 +87,13 @@ def _extract_method_title(header_text: str, filename: str) -> str:
         FROM STATIONARY SOURCES
     on the first page. The method number is captured separately; here we
     grab the lines following it as the title.
+
+    Regulatory documents (40 CFR, Federal Register) have no method title;
+    we return "" for those.
     """
     if not header_text:
+        return ""
+    if _is_regulation(filename, header_text):
         return ""
 
     # Normalize separators that can appear between a method number and its
@@ -140,9 +160,11 @@ def _build_fallback_metadata(
     """
     number_source = header_text or text
     title_source = header_text or text
+    is_reg = _is_regulation(filename, number_source)
     return {
-        "method_number": _extract_method_number(number_source, filename),
+        "method_number": "" if is_reg else _extract_method_number(number_source, filename),
         "method_title": _extract_method_title(title_source, filename),
+        "doc_type": "regulation" if is_reg else "method",
         "revision": _extract_revision(text),
         "revision_date": _extract_date(text),
         "supersedes": _extract_supersedes(text),
