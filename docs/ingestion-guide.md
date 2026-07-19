@@ -36,27 +36,31 @@ All settings via `.env` (or environment variables with `EPA_KG__` prefix):
 
 ```bash
 # Ingestion
-EPA_KG__INGESTION__PDF_DIR=./epa-methods
-EPA_KG__INGESTION__CHUNK_SIZE=512
-EPA_KG__INGESTION__CHUNK_OVERLAP=64
-EPA_KG__INGESTION__TOC_AWARE=true
-EPA_KG__INGESTION__EXTRACT_TABLES=true
-EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
-EPA_KG__INGESTION__MAX_FILES=0           # 0 = all files, or limit for testing
+EPA_KG__PDF_DIR=./epa-methods
+EPA_KG__CHUNK_SIZE=512
+EPA_KG__CHUNK_OVERLAP=64
+EPA_KG__TOC_AWARE=true
+EPA_KG__EXTRACT_TABLES=true
+EPA_KG__MAX_FILE_SIZE_MB=100
+# NOTE: max_files is NOT an env var — pass {"max_files": 50} in the POST /ingest body.
 
 # Service behavior
-EPA_KG__APP__RELOAD=false                 # Disable auto-reload for stability
+EPA_KG__RELOAD=false                 # Disable auto-reload for stability
 
 # Embeddings (choose one)
-EPA_KG__EMBEDDING__PROVIDER=fastembed        # Local, default
-# EPA_KG__EMBEDDING__PROVIDER=ollama         # Local, needs Ollama
-# EPA_KG__EMBEDDING__PROVIDER=openrouter     # Remote, needs API key
+EPA_KG__EMBEDDING_PROVIDER=fastembed        # Local, default
+# EPA_KG__EMBEDDING_PROVIDER=ollama         # Local, needs Ollama
+# EPA_KG__EMBEDDING_PROVIDER=openrouter     # Remote, needs OPENROUTER_API_KEY
 
 # LLM for metadata extraction (optional)
-EPA_KG__LLM__PROVIDER=none                   # Disabled (regex fallback)
-# EPA_KG__LLM__PROVIDER=ollama               # Local
-# EPA_KG__LLM__PROVIDER=openrouter           # Remote
+EPA_KG__LLM_PROVIDER=none                   # Disabled (regex fallback)
+# EPA_KG__LLM_PROVIDER=ollama               # Local
+# EPA_KG__LLM_PROVIDER=openrouter           # Remote
 ```
+
+**Secrets:** API keys are read from the process environment (`OPENROUTER_API_KEY`,
+`CHROMADB_API_KEY`), not from `.env`. Provider-specific keys fall back to
+`OPENROUTER_API_KEY`.
 
 ---
 
@@ -137,7 +141,7 @@ Uses configured LLM provider to extract structured metadata from first ~8000 cha
 - OpenRouter: `anthropic/claude-3.5-sonnet` (best quality)
 - Ollama: `llama3.2:3b` (local, no API key)
 
-### Regex Fallback (No LLM / `EPA_KG__LLM__PROVIDER=none`)
+### Regex Fallback (No LLM / `EPA_KG__LLM_PROVIDER=none`)
 
 Extracts from filename + first-page header text (NOT body chunks):
 
@@ -165,8 +169,8 @@ Extracts from filename + first-page header text (NOT body chunks):
 **Switching:**
 ```bash
 # In .env
-EPA_KG__EMBEDDING__PROVIDER=ollama
-EPA_KG__EMBEDDING__OLLAMA__MODEL=nomic-embed-text
+EPA_KG__EMBEDDING_PROVIDER=ollama
+EPA_KG__OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 ```
 
 ---
@@ -252,14 +256,14 @@ echo $OPENROUTER_API_KEY
 
 ### "Query endpoint crashes (WinError 10054)"
 - Caused by `reload=True` in FastAPI dev mode
-- **Fixed:** Set `EPA_KG__APP__RELOAD=false` in `.env` (now default)
+- **Fixed:** Set `EPA_KG__RELOAD=false` in `.env` (now default)
 - Auto-reload kills in-flight query workers on any file change
 
 ### Large PDFs timeout
 ```bash
 # Increase timeout in .env or chunk smaller
-EPA_KG__INGESTION__MAX_FILE_SIZE_MB=200
-EPA_KG__INGESTION__CHUNK_SIZE=256
+EPA_KG__MAX_FILE_SIZE_MB=200
+EPA_KG__CHUNK_SIZE=256
 ```
 
 ---
@@ -272,7 +276,7 @@ EPA_KG__INGESTION__CHUNK_SIZE=256
 | `chunk_overlap` | 64 | 10-20% of chunk_size |
 | `batch_size` (embeddings) | 32 | 64-128 for GPU, 16-32 for CPU |
 | `toc_aware` | true | Keep true for EPA methods |
-| `max_files` | 0 (all) | 50 for dev iteration |
+| `max_files` | 0 (all) | 50 for dev iteration (POST /ingest body field) |
 | `reload` | false | Disable for production |
 
 ### Benchmarks (Approximate)
@@ -282,6 +286,10 @@ EPA_KG__INGESTION__CHUNK_SIZE=256
 | 50 | ~200 | 30s | 15s |
 | 100 | ~400 | 60s | 30s |
 | 200 | ~800 | 120s | 60s |
+
+> **Note:** The benchmark times above are optimistic per-PDF estimates. The full
+> 251-PDF corpus ingests in ~2.8 hours; a 50-PDF subset (`epa_methods_test50`)
+> takes ~18 minutes with FastEmbed on CPU.
 
 ---
 

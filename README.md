@@ -21,7 +21,7 @@ This project builds:
 
 ---
 
-## Quickstart (Coming Phase 1)
+## Quickstart
 
 ```bash
 # Install Rust toolchain
@@ -39,7 +39,7 @@ cp .env.example .env
 # Edit .env with your paths / API keys
 
 # Start Python ingestion service (in separate terminal)
-cd python/ingestion && uv run python -m main
+cd python/ingestion && uv run uvicorn main:app --host 127.0.0.1 --port 8001
 
 # Ingest your EPA method PDFs
 cargo run --bin epa-kg -- ingest --pdf-dir ./epa-methods

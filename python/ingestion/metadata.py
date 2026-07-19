@@ -132,10 +132,17 @@ def _extract_method_title(header_text: str, filename: str) -> str:
 def _build_fallback_metadata(
     text: str, filename: str, header_text: str = ""
 ) -> dict[str, Any]:
-    """Build metadata dict from regex-based fallback extraction."""
+    """Build metadata dict from regex-based fallback extraction.
+
+    Method number/title are drawn from ``header_text`` (first-page header) when
+    available, falling back to the full ``text`` so extraction still works when
+    no dedicated header was supplied.
+    """
+    number_source = header_text or text
+    title_source = header_text or text
     return {
-        "method_number": _extract_method_number(header_text, filename),
-        "method_title": _extract_method_title(header_text, filename),
+        "method_number": _extract_method_number(number_source, filename),
+        "method_title": _extract_method_title(title_source, filename),
         "revision": _extract_revision(text),
         "revision_date": _extract_date(text),
         "supersedes": _extract_supersedes(text),
@@ -347,25 +354,25 @@ class HeuristicMetadataExtractor(MetadataExtractor):
 def get_metadata_extractor(settings) -> MetadataExtractor | None:
     """Factory function to get the configured metadata extractor."""
 
-    provider = settings.llm_provider.lower()
+    provider = settings.llm.provider.lower()
 
     if provider == "openrouter":
-        api_key = settings.openrouter_llm_api_key or settings.openrouter_api_key
+        api_key = settings.llm.openrouter_api_key or settings.openrouter_api_key
         if not api_key:
             logger.warning("OpenRouter API key not set, metadata extraction disabled")
             return None
         return OpenRouterMetadataExtractor(
             api_key=api_key,
-            model=settings.openrouter_llm_model,
-            temperature=settings.openrouter_llm_temperature,
-            max_tokens=settings.openrouter_llm_max_tokens,
+            model=settings.llm.openrouter_model,
+            temperature=settings.llm.openrouter_temperature,
+            max_tokens=settings.llm.openrouter_max_tokens,
         )
 
     elif provider == "ollama":
         return OllamaMetadataExtractor(
-            host=settings.ollama_llm_host,
-            model=settings.ollama_llm_model,
-            temperature=settings.ollama_llm_temperature,
+            host=settings.llm.ollama_host,
+            model=settings.llm.ollama_model,
+            temperature=settings.llm.ollama_temperature,
         )
 
     elif provider == "none":

@@ -217,30 +217,30 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
 def get_embedding_provider(settings) -> EmbeddingProvider:
     """Factory function to get the configured embedding provider."""
 
-    provider = settings.embedding_provider.lower()
+    provider = settings.embedding.provider.lower()
 
     if provider == "fastembed":
         return FastEmbedProvider(
-            model_name=settings.fastembed_model,
-            batch_size=settings.fastembed_batch_size,
+            model_name=settings.embedding.fastembed_model,
+            batch_size=settings.embedding.fastembed_batch_size,
         )
 
     elif provider == "openrouter":
-        api_key = settings.openrouter_embedding_api_key or settings.openrouter_api_key
+        api_key = settings.embedding.openrouter_api_key or settings.openrouter_api_key
         if not api_key:
             raise ValueError("OpenRouter API key required for openrouter embedding provider")
         return OpenRouterEmbeddingProvider(
             api_key=api_key,
-            model=settings.openrouter_embedding_model,
-            dimensions=settings.openrouter_embedding_dimensions,
-            batch_size=settings.openrouter_embedding_batch_size,
+            model=settings.embedding.openrouter_model,
+            dimensions=settings.embedding.openrouter_dimensions,
+            batch_size=settings.embedding.openrouter_batch_size,
         )
 
     elif provider == "ollama":
         return OllamaEmbeddingProvider(
-            host=settings.ollama_embedding_host,
-            model=settings.ollama_embedding_model,
-            batch_size=settings.ollama_embedding_batch_size,
+            host=settings.embedding.ollama_host,
+            model=settings.embedding.ollama_model,
+            batch_size=settings.embedding.ollama_batch_size,
         )
 
     else:

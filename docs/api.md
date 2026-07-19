@@ -5,7 +5,7 @@
 | Environment | URL |
 |-------------|-----|
 | Local Development | `http://127.0.0.1:8001` |
-| Production | Configurable via `EPA_KG__APP__HOST` / `EPA_KG__APP__PORT` |
+| Production | Configurable via `EPA_KG__HOST` / `EPA_KG__PORT` |
 
 ## Authentication
 
@@ -223,42 +223,47 @@ The Python service reads from the same `.env` as Rust (via `pydantic-settings`):
 
 ```bash
 # Server
-EPA_KG__APP__HOST=127.0.0.1
-EPA_KG__APP__PORT=8001
-EPA_KG__APP__LOG_LEVEL=info
-EPA_KG__APP__RELOAD=false
-EPA_KG__APP__DATA_DIR=./data
+EPA_KG__HOST=127.0.0.1
+EPA_KG__PORT=8001
+EPA_KG__LOG_LEVEL=info
+EPA_KG__RELOAD=false
+EPA_KG__DATA_DIR=./data
 
 # ChromaDB
-EPA_KG__CHROMA__HOST=127.0.0.1
-EPA_KG__CHROMA__PORT=8000
-EPA_KG__CHROMA__COLLECTION_NAME=epa_methods
-EPA_KG__CHROMA__PERSIST_DIR=./data/chroma
+EPA_KG__CHROMA_HOST=127.0.0.1
+EPA_KG__CHROMA_PORT=8000
+EPA_KG__CHROMA_COLLECTION=epa_methods
+EPA_KG__CHROMA_PERSIST_DIR=./data/chroma
 
 # Ingestion
-EPA_KG__INGESTION__PDF_DIR=./epa-methods
-EPA_KG__INGESTION__CHUNK_SIZE=512
-EPA_KG__INGESTION__CHUNK_OVERLAP=64
-EPA_KG__INGESTION__TOC_AWARE=true
-EPA_KG__INGESTION__EXTRACT_TABLES=true
-EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
-EPA_KG__INGESTION__MAX_FILES=0
+EPA_KG__PDF_DIR=./epa-methods
+EPA_KG__CHUNK_SIZE=512
+EPA_KG__CHUNK_OVERLAP=64
+EPA_KG__TOC_AWARE=true
+EPA_KG__EXTRACT_TABLES=true
+EPA_KG__MAX_FILE_SIZE_MB=100
+# NOTE: max_files is NOT an env var — it is a per-request field on POST /ingest.
 
 # Embeddings
-EPA_KG__EMBEDDING__PROVIDER=fastembed  # or openrouter, ollama
+EPA_KG__EMBEDDING_PROVIDER=fastembed  # or openrouter, ollama
 # OpenRouter
-EPA_KG__EMBEDDING__OPENROUTER__API_KEY=sk-or-...
-EPA_KG__EMBEDDING__OPENROUTER__MODEL=openai/text-embedding-3-small
+EPA_KG__OPENROUTER_EMBEDDING_API_KEY=sk-or-...   # falls back to OPENROUTER_API_KEY
+EPA_KG__OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+EPA_KG__OPENROUTER_EMBEDDING_DIMENSIONS=1536
 # Ollama
-EPA_KG__EMBEDDING__OLLAMA__HOST=http://localhost:11434
-EPA_KG__EMBEDDING__OLLAMA__MODEL=nomic-embed-text
+EPA_KG__OLLAMA_EMBEDDING_HOST=http://localhost:11434
+EPA_KG__OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 
 # LLM (Metadata)
-EPA_KG__LLM__PROVIDER=none  # or openrouter, ollama
-EPA_KG__LLM__OPENROUTER__API_KEY=sk-or-...
-EPA_KG__LLM__OPENROUTER__MODEL=anthropic/claude-3.5-sonnet
-EPA_KG__LLM__OLLAMA__HOST=http://localhost:11434
-EPA_KG__LLM__OLLAMA__MODEL=llama3.2:3b
+EPA_KG__LLM_PROVIDER=none  # or openrouter, ollama
+EPA_KG__OPENROUTER_LLM_API_KEY=sk-or-...          # falls back to OPENROUTER_API_KEY
+EPA_KG__OPENROUTER_LLM_MODEL=anthropic/claude-3.5-sonnet
+EPA_KG__OLLAMA_LLM_HOST=http://localhost:11434
+EPA_KG__OLLAMA_LLM_MODEL=llama3.2:3b
+
+# Secrets are read from the process environment, not from .env.
+# Set OPENROUTER_API_KEY (single shared key) and/or CHROMADB_API_KEY in your
+# shell profile / CI secrets. See .env.example for the full list.
 ```
 
 ---

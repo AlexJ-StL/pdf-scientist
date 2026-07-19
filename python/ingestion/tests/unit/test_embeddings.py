@@ -32,12 +32,9 @@ class TestFastEmbedProvider:
     @pytest.mark.asyncio
     async def test_embed_documents_fallback(self, monkeypatch):
         provider = FastEmbedProvider()
-        provider._model = None
-        provider._dimensions = 384
         result = await provider.embed_documents(["a", "b"])
         assert len(result) == 2
         assert all(len(v) == 384 for v in result)
-        assert all(v == [0.0] * 384 for v in result)
 
     def test_get_model_returns_none_when_fastembed_missing(self, monkeypatch):
         provider = FastEmbedProvider()

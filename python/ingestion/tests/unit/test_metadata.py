@@ -1,4 +1,5 @@
 from ingestion.metadata import (
+    HeuristicMetadataExtractor,
     MethodMetadata,
     OllamaMetadataExtractor,
     OpenRouterMetadataExtractor,
@@ -153,14 +154,14 @@ class TestGetMetadataExtractor:
         extractor = get_metadata_extractor(settings)
         assert isinstance(extractor, OllamaMetadataExtractor)
 
-    def test_none_returns_none(self, monkeypatch):
+    def test_none_returns_heuristic(self, monkeypatch):
         from ingestion.config import Settings
 
         monkeypatch.setenv("EPA_KG__LLM_PROVIDER", "none")
         settings = Settings()
 
         extractor = get_metadata_extractor(settings)
-        assert extractor is None
+        assert isinstance(extractor, HeuristicMetadataExtractor)
 
     def test_unknown_returns_none(self):
         from unittest.mock import MagicMock

@@ -50,10 +50,22 @@ class TestSettings:
         assert settings.chunk_size == 256
         assert settings.llm_provider == "none"
 
-    def test_settings_optional_fields_default_none(self):
+    def test_settings_optional_fields_default_none(self, monkeypatch):
+        # Make the test hermetic: clear any ambient secret env vars so defaults
+        # (None) are observable regardless of the local shell/CI environment.
+        for var in ("OPENROUTER_API_KEY", "CHROMADB_API_KEY",
+                    "EPA_KG__OPENROUTER_API_KEY", "EPA_KG__CHROMA_API_KEY"):
+            monkeypatch.delenv(var, raising=False)
         settings = Settings()
         assert settings.chroma_api_key is None
         assert settings.chroma_tenant is None
         assert settings.chroma_database is None
         assert settings.openrouter_embedding_api_key is None
         assert settings.openrouter_embedding_dimensions == 1536
+
+    def test_canonical_secret_from_bare_env(self, monkeypatch):
+        # OPENROUTER_API_KEY (no prefix) is the single canonical secret name.
+        monkeypatch.delenv("EPA_KG__OPENROUTER_API_KEY", raising=False)
+        monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test-canonical")
+        settings = Settings()
+        assert settings.openrouter_api_key == "sk-test-canonical"

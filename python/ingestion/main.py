@@ -54,31 +54,31 @@ async def lifespan(app: FastAPI):
 
     # Initialize ChromaDB
     chroma_manager = ChromaManager(
-        host=settings.chroma_host,
-        port=settings.chroma_port,
-        collection_name=settings.chroma_collection,
-        persist_dir=settings.chroma_persist_dir,
-        use_cloud=settings.chroma_use_cloud,
-        api_key=settings.chroma_api_key,
-        tenant=settings.chroma_tenant,
-        database=settings.chroma_database,
+        host=settings.chroma.host,
+        port=settings.chroma.port,
+        collection_name=settings.chroma.collection,
+        persist_dir=settings.chroma.persist_dir,
+        use_cloud=settings.chroma.use_cloud,
+        api_key=settings.chroma.api_key,
+        tenant=settings.chroma.tenant,
+        database=settings.chroma.database,
     )
     await chroma_manager.initialize()
     logger.info("ChromaDB initialized")
 
     # Initialize embedding provider
     embedding_provider = get_embedding_provider(settings)
-    logger.info(f"Embedding provider initialized: {settings.embedding_provider}")
+    logger.info(f"Embedding provider initialized: {settings.embedding.provider}")
 
     # Initialize metadata extractor
     metadata_extractor = get_metadata_extractor(settings)
-    logger.info(f"Metadata extractor initialized: {settings.llm_provider}")
+    logger.info(f"Metadata extractor initialized: {settings.llm.provider}")
 
     # Initialize chunker
     chunker = EPAMethodChunker(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap,
-        toc_aware=settings.toc_aware,
+        chunk_size=settings.ingestion.chunk_size,
+        chunk_overlap=settings.ingestion.chunk_overlap,
+        toc_aware=settings.ingestion.toc_aware,
     )
     logger.info("Chunker initialized")
 
@@ -173,8 +173,8 @@ async def health_check():
     return HealthResponse(
         status="ok" if chroma_ok else "degraded",
         chroma_connected=chroma_ok,
-        embedding_provider=settings.embedding_provider,
-        llm_provider=settings.llm_provider,
+        embedding_provider=settings.embedding.provider,
+        llm_provider=settings.llm.provider,
     )
 
 
@@ -185,8 +185,8 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
 
     start_time = time.time()
 
-    pdf_dir = Path(request.pdf_dir) if request.pdf_dir else settings.pdf_dir
-    collection = request.collection or settings.chroma_collection
+    pdf_dir = Path(request.pdf_dir) if request.pdf_dir else settings.ingestion.pdf_dir
+    collection = request.collection or settings.chroma.collection
 
     if not pdf_dir.exists():
         raise HTTPException(status_code=400, detail=f"PDF directory does not exist: {pdf_dir}")
@@ -208,9 +208,9 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
     for pdf_file in pdf_files:
         try:
             file_size_mb = pdf_file.stat().st_size / (1024 * 1024)
-            if file_size_mb > settings.max_file_size_mb:
+            if file_size_mb > settings.ingestion.max_file_size_mb:
                 errors.append(
-                    f"{pdf_file.name}: File too large ({file_size_mb:.1f}MB > {settings.max_file_size_mb}MB)"
+                    f"{pdf_file.name}: File too large ({file_size_mb:.1f}MB > {settings.ingestion.max_file_size_mb}MB)"
                 )
                 continue
 
@@ -241,14 +241,14 @@ async def ingest_documents(request: IngestRequest, background_tasks: BackgroundT
 
 def _get_chunker_for_request(request: IngestRequest) -> EPAMethodChunker:
     """Return the chunker to use, honoring request overrides when provided."""
-    chunk_size = request.chunk_size or settings.chunk_size
-    chunk_overlap = request.chunk_overlap or settings.chunk_overlap
-    toc_aware = request.toc_aware if request.toc_aware is not None else settings.toc_aware
+    chunk_size = request.chunk_size or settings.ingestion.chunk_size
+    chunk_overlap = request.chunk_overlap or settings.ingestion.chunk_overlap
+    toc_aware = request.toc_aware if request.toc_aware is not None else settings.ingestion.toc_aware
 
     if (
-        chunk_size != settings.chunk_size
-        or chunk_overlap != settings.chunk_overlap
-        or toc_aware != settings.toc_aware
+        chunk_size != settings.ingestion.chunk_size
+        or chunk_overlap != settings.ingestion.chunk_overlap
+        or toc_aware != settings.ingestion.toc_aware
     ):
         return EPAMethodChunker(
             chunk_size=chunk_size,
@@ -292,7 +292,7 @@ async def query_knowledge_graph(request: QueryRequest):
     if not chroma_manager or not embedding_provider:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    collection = request.collection or settings.chroma_collection
+    collection = request.collection or settings.chroma.collection
 
     # Generate query embedding
     query_embedding = await embedding_provider.embed_query(request.question)
@@ -350,7 +350,7 @@ async def extract_graph_references(request: GraphExtractRequest):
     if not chroma_manager:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    collection = request.collection or settings.chroma_collection
+    collection = request.collection or settings.chroma.collection
 
     # Get all chunks from the collection
     results = await chroma_manager.get_all(collection, include_embeddings=True)
@@ -691,8 +691,8 @@ if __name__ == "__main__":
     module = "ingestion.main:app" if __package__ else "main:app"
     uvicorn.run(
         module,
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level,
-        reload=settings.reload,
+        host=settings.app.host,
+        port=settings.app.port,
+        log_level=settings.app.log_level,
+        reload=settings.app.reload,
     )

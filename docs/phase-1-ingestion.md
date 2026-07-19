@@ -116,43 +116,50 @@ class EPAMethodChunker:
 
 ```bash
 # Ingestion
-EPA_KG__INGESTION__PDF_DIR=./epa-methods
-EPA_KG__INGESTION__CHUNK_SIZE=512
-EPA_KG__INGESTION__CHUNK_OVERLAP=64
-EPA_KG__INGESTION__TOC_AWARE=true
-EPA_KG__INGESTION__MAX_FILE_SIZE_MB=100
-EPA_KG__INGESTION__MAX_FILES=0           # 0 = all files, or limit for testing (e.g., 50)
+EPA_KG__PDF_DIR=./epa-methods
+EPA_KG__CHUNK_SIZE=512
+EPA_KG__CHUNK_OVERLAP=64
+EPA_KG__TOC_AWARE=true
+EPA_KG__EXTRACT_TABLES=true
+EPA_KG__MAX_FILE_SIZE_MB=100
+# NOTE: max_files is NOT an env var — pass it as a field on POST /ingest
+#       (e.g. {"max_files": 50}) to limit PDFs per ingest call for fast testing.
 
 # Service behavior
-EPA_KG__APP__RELOAD=false                 # Disable auto-reload for stability
+EPA_KG__RELOAD=false                 # Disable auto-reload for stability
 
 # Embeddings (choose one)
-EPA_KG__EMBEDDING__PROVIDER=fastembed
-# FastEmbed
-EPA_KG__EMBEDDING__FASTEMBED__MODEL=BAAI/bge-small-en-v1.5
-EPA_KG__EMBEDDING__FASTEMBED__BATCH_SIZE=32
-# OpenRouter
-# EPA_KG__EMBEDDING__PROVIDER=openrouter
-# EPA_KG__EMBEDDING__OPENROUTER__API_KEY=sk-or-...
-# EPA_KG__EMBEDDING__OPENROUTER__MODEL=openai/text-embedding-3-small
-# EPA_KG__EMBEDDING__OPENROUTER__DIMENSIONS=1536
+EPA_KG__EMBEDDING_PROVIDER=fastembed
+# FastEmbed (default, no API key)
+EPA_KG__FASTEMBED_MODEL=BAAI/bge-small-en-v1.5
+EPA_KG__FASTEMBED_BATCH_SIZE=32
+# OpenRouter (requires OPENROUTER_API_KEY secret)
+# EPA_KG__EMBEDDING_PROVIDER=openrouter
+# EPA_KG__OPENROUTER_EMBEDDING_API_KEY=sk-or-...   # falls back to OPENROUTER_API_KEY
+# EPA_KG__OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+# EPA_KG__OPENROUTER_EMBEDDING_DIMENSIONS=1536
 # Ollama
-# EPA_KG__EMBEDDING__PROVIDER=ollama
-# EPA_KG__EMBEDDING__OLLAMA__HOST=http://localhost:11434
-# EPA_KG__EMBEDDING__OLLAMA__MODEL=nomic-embed-text
+# EPA_KG__EMBEDDING_PROVIDER=ollama
+# EPA_KG__OLLAMA_EMBEDDING_HOST=http://localhost:11434
+# EPA_KG__OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 
 # LLM Metadata (choose one)
-EPA_KG__LLM__PROVIDER=ollama
+EPA_KG__LLM_PROVIDER=none              # Default: heuristic regex extraction, no API key
 # OpenRouter
-# EPA_KG__LLM__PROVIDER=openrouter
-# EPA_KG__LLM__OPENROUTER__API_KEY=sk-or-...
-# EPA_KG__LLM__OPENROUTER__MODEL=anthropic/claude-3.5-sonnet
+# EPA_KG__LLM_PROVIDER=openrouter
+# EPA_KG__OPENROUTER_LLM_API_KEY=sk-or-...          # falls back to OPENROUTER_API_KEY
+# EPA_KG__OPENROUTER_LLM_MODEL=anthropic/claude-3.5-sonnet
 # Ollama
-# EPA_KG__LLM__OLLAMA__HOST=http://localhost:11434
-# EPA_KG__LLM__OLLAMA__MODEL=llama3.2:3b
-# None
-# EPA_KG__LLM__PROVIDER=none
+# EPA_KG__LLM_PROVIDER=ollama
+# EPA_KG__OLLAMA_LLM_HOST=http://localhost:11434
+# EPA_KG__OLLAMA_LLM_MODEL=llama3.2:3b
 ```
+
+**Secrets:** API keys are read from the process environment, not from `.env`.
+Set `OPENROUTER_API_KEY` (single shared key for embeddings + LLM + reranker) and
+optionally `CHROMADB_API_KEY` in your shell profile or CI secrets. Provider-specific
+keys (`EPA_KG__OPENROUTER_EMBEDDING_API_KEY`, `EPA_KG__OPENROUTER_LLM_API_KEY`) fall
+back to `OPENROUTER_API_KEY` when unset.
 
 ---
 
